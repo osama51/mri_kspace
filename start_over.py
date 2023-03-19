@@ -121,7 +121,9 @@ for y in range(N):
         x_sum = np.sum(m_rotx[..., 0])
         y_sum = np.sum(m_rotx[..., 1])
         k_space[y, x] = np.complex(y_sum, x_sum)
+        
         image = np.abs((np.fft.ifft2(k_space)))
+        
         # Display image
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(10, 5)) # , figsize=(10, 5)
         ax1.set_title('Phantom')
