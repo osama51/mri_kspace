@@ -30,7 +30,7 @@ pp = pprint.PrettyPrinter(sort_dicts=True)
 
 
 # Define phantom
-image =cv2.imread("sword2_11p.JPG",0)
+image =cv2.imread("phantoms/sword2_11p.JPG",0)
 phantom = np.array(image)
 
 print(phantom.shape, 'phantom')
@@ -120,20 +120,20 @@ for y in range(N):
         # print(m, 'mmmm_newwwwww_final')
         x_sum = np.sum(m_rotx[..., 0])
         y_sum = np.sum(m_rotx[..., 1])
-        k_space[y, x] = np.complex(y_sum, x_sum)
+        k_space[y, x] = complex(y_sum, x_sum)
         
         image = np.abs((np.fft.ifft2(k_space)))
         
-        # Display image
-        fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(10, 5)) # , figsize=(10, 5)
-        ax1.set_title('Phantom')
-        ax1.imshow(phantom, cmap='gray')
-        ax2.imshow(image, cmap='gray')
-        ax2.set_title('Reconstructed')
-        ax3.imshow(np.log(np.abs((k_space))), cmap='gray')
-        ax3.set_title('My Poor K-Space')
-        ax4.imshow(np.log(np.abs((real_kspace))), cmap='gray')
-        ax4.set_title('Real K-Space')
+        # # Display image
+        # fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(10, 5)) # , figsize=(10, 5)
+        # ax1.set_title('Phantom')
+        # ax1.imshow(phantom, cmap='gray')
+        # ax2.imshow(image, cmap='gray')
+        # ax2.set_title('Reconstructed')
+        # ax3.imshow(np.log(np.abs((k_space))), cmap='gray')
+        # ax3.set_title('My Poor K-Space')
+        # ax4.imshow(np.log(np.abs((real_kspace))), cmap='gray')
+        # ax4.set_title('Real K-Space')
     
     
 # k_space = k_space / np.max(np.abs(k_space))
