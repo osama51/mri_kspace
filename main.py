@@ -52,6 +52,9 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.actionOpen.triggered.connect(self.browse)
         # self.markerCheckBox.stateChanged.connect(self.set_point)
         
+        self.rfDial.valueChanged.connect(self.sequence)
+        
+        
         # self.plot = self.phantomView.addPlot()
         self.x_i = 0
         self.y_i = 0
@@ -276,6 +279,8 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         pass
 
     def sequence(self):
+        plt.clf()
+        rf_amp = self.rfDial.value() / 45
         time_step=0.1
         start_time=50
         Gz_amp=0.4
@@ -322,7 +327,7 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         	Gph_zeros=zeros.copy()
 
         x=np.linspace(int(-Rf_time/2),int(Rf_time/2),Rf_x_axis)
-        y=np.sinc(x)/1.5
+        y=np.sinc(x) * rf_amp
 
         Gx_zeros=zeros.copy()
         Gx_zeros[str_Gx_time_neg:fin_Gx_time_neg]=-Gx_amp

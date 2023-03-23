@@ -65,7 +65,7 @@
            <item row="1" column="1">
             <widget class="QGroupBox" name="groupBox_10">
              <property name="title">
-              <string>GroupBox</string>
+              <string>TE</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_6">
               <item row="0" column="0">
@@ -77,11 +77,18 @@
            <item row="2" column="0">
             <widget class="QGroupBox" name="groupBox_12">
              <property name="title">
-              <string>GroupBox</string>
+              <string>RF</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_8">
               <item row="0" column="0">
-               <widget class="QDial" name="dial_3"/>
+               <widget class="QDial" name="rfDial">
+                <property name="maximum">
+                 <number>90</number>
+                </property>
+                <property name="value">
+                 <number>90</number>
+                </property>
+               </widget>
               </item>
              </layout>
             </widget>
@@ -101,7 +108,7 @@
            <item row="1" column="0">
             <widget class="QGroupBox" name="groupBox_9">
              <property name="title">
-              <string>GroupBox</string>
+              <string>TR</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_3">
               <item row="0" column="0">
