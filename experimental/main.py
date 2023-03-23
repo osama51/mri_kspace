@@ -465,75 +465,364 @@
 ##################################################
 ##################################################
 
+import numpy as np
+from PyQt5 import QtWidgets
+import pyqtgraph as pg
+from PIL import Image
+from PyQt5.uic import loadUiType
+from PyQt5 import QtCore, QtGui
+from os import path
+
+FORM_CLASS,_ = loadUiType(path.join(path.dirname(__file__), "gui.ui"))
+class TestImage(QtWidgets.QMainWindow, FORM_CLASS):
+
+    def __init__(self):
+        super().__init__()
+
+        # Basic UI layout
+        self.setupUi(self)
+        self.statusbar = QtWidgets.QStatusBar(self)
+        self.setStatusBar(self.statusbar)
+        self.glw = pg.GraphicsLayoutWidget()
+        # self.setCentralWidget(self.glw)
+
+        self.pushButton.clicked.connect(lambda: self.ImgView.autoRange())
+        
+        self.plot = self.grSpec.addPlot()
+        self.x_i = 0
+        self.y_i = 0
+        # self.draw_graph(self.plot)
+        
+        self.draw_graph(self.ImgView, self.plot)
+        # Make image plot
+        # self.p1 = self.glw.addPlot()
+        # self.p1.getViewBox().setAspectLocked()
+        # Draw axes and ticks above image/data
+        # [ self.p1.getAxis(ax).setZValue(10) for ax in self.p1.axes ]
+        # self.data = np.random.rand(120, 100)
+        
+        # self.image = Image.open('hgjart.JPG')
+        # self.frame = np.asarray(self.image)
+        
+        # self.dimen_x = self.frame.shape[0]
+        # self.dimen_y = self.frame.shape[1]
+        
+        # # self.frame = np.random.rand(120, 100)
+        # self.local_image = pg.ImageItem(self.frame)
+        
+
+        # self.img = pg.ImageItem(self.data)
+        # self.p1.addItem(self.local_image)
+        # Centre axis ticks on pixel
+        # self.local_image.setPos(-0.5, -0.5)
+
+        # # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # # Set a custom color map
+        # colors = [
+        #     (0, 0, 0),
+        #     (4, 5, 61),
+        #     (84, 42, 55),
+        #     (15, 87, 60),
+        #     (208, 17, 141),
+        #     (255, 255, 255)
+        # ]
+ 
+        # # color map
+        # cmap = pg.ColorMap(pos=np.linspace(0.0, 1.0, 6), color=colors)
+ 
+        # # setting color map to the image view
+        # # self.p1.addColorBar( self.local_image, colorMap='viridis', values=(0, 1) )
+        
+        # # cm = pg.colormap.get('CET-L9') # prepare a linear color map
+        # bar = pg.ColorBarItem( values= (0, 20_000), cmap='viridis' ) # prepare interactive color bar
+        
+        # # Have ColorBarItem control colors of img and appear in 'plot':
+        # bar.setImageItem( self.local_image, insert_in=self.p1 )
+        # # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        
+        
+        # Swap commented lines to choose between hover or click events
+        # self.p1.scene().sigMouseMoved.connect(self.mouseMovedEvent)
+        #self.p1.scene().sigMouseClicked.connect(self.mouseClickedEvent)
+
+    def setImage(self, img, imgItem, autoRange=True, autoLevels=True,
+                 levels=None, axes=None, xvals=None, pos=None,
+                 scale=None, transform=None, autoHistogramRange=True):
+        # self.min_level, self.max_level = self.ui.histogram.getLevels()
+        # get the current transform
+        transform = imgItem.transform()
+        # update the image displayed
+        pg.ImageView.setImage(self, img, autoRange=autoRange, autoLevels=autoLevels,
+                     levels=levels, axes=axes, xvals=xvals, pos=pos,
+                     scale=scale, transform=transform, autoHistogramRange=autoHistogramRange)
+        # # update the histogram
+        # self.ui.histogram.setLevels(self.min_level, self.max_level)
+        # try to apply the transform to the image item
+        imgItem.setTransform(transform)
+        
+    def draw_graph(self, graph, graph2):
+            graph.clear()
+            
+            self.image = Image.open('hgjart.JPG')
+            self.frame = np.asarray(self.image)
+            
+            self.image2 = Image.open('eudiachae3.JPG')
+            self.frame2 = np.asarray(self.image2)
+            
+            self.dimen_x = self.frame.shape[0]
+            self.dimen_y = self.frame.shape[1]
+            
+            # self.frame = np.random.rand(120, 100)
+            img = pg.ImageItem(self.frame)
+            
+            # Interpret image data as row-major instead of col-major
+            pg.setConfigOptions(imageAxisOrder='row-major')
+            pg.mkQApp()
+            spec_plot = graph
+            spec_plot2 = graph2
+            # img = pg.ImageItem()
+            spec_plot2.addItem(img) # PlotWidget with ImageItem
+            
+            spec_plot.ui.histogram.hide() # ImgaeView
+            spec_plot.ui.roiBtn.hide()
+            spec_plot.ui.menuBtn.hide()
+            # spec_plot.ui.histogram.hide()
+            # spec_plot.ui.histogram.hide()
+            spec_plot.setImage(self.frame) # ImgaeView
+            
+            # hist = pg.HistogramLUTItem() # histogram to control the gradient of the image
+            # hist.setImageItem(img)
+            # graph.addItem(hist)
+            # self.grSpec.show()
+            # hist.setLevels(np.min(self.frame), np.max(self.frame))
+            # img.setImage(Sxx) # Sxx: amplitude for each pixel
+            # img.scale(self.dimen_x[-1]/np.size(self.frame, axis=1),
+            #           self.dimen_y[-1]/np.size(self.frame, axis=0))
+            
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # # Set a custom color map
+            # colors = [
+            #     (0, 0, 0),
+            #     (4, 5, 61),
+            #     (84, 42, 55),
+            #     (15, 87, 60),
+            #     (208, 17, 141),
+            #     (255, 255, 255)
+            # ]
+     
+            # # color map
+            # cmap = pg.ColorMap(pos=np.linspace(0.0, 1.0, 6), color=colors)
+     
+            # # setting color map to the image view
+            # # self.p1.addColorBar( self.local_image, colorMap='viridis', values=(0, 1) )
+            
+            # # cm = pg.colormap.get('CET-L9') # prepare a linear color map
+            # bar = pg.ColorBarItem( values= (0, 20_000), cmap='viridis' ) # prepare interactive color bar
+            
+            # # Have ColorBarItem control colors of img and appear in 'plot':
+            # bar.setImageItem( img, insert_in=spec_plot )
+            # # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            
+            
+            # spec_plot.setLimits(xMin=0, xMax=self.dimen_x[-1], yMin=0, yMax=self.dimen_y[-1])
+            # spec_plot.setLabel('bottom', "Time", units='s')
+            # spec_plot.setLabel('left', "Frequency", units='Hz')
+            # hist.gradient.restoreState({'ticks': [(0.0, (0, 0, 0, 255)), (0.01, (32, 0, 129, 255)),
+            #                                     (0.8, (255, 255, 0, 255)), (0.5, (115, 15, 255, 255)),
+            #                                     (1.0, (255, 255, 255, 255))], 'mode': 'rgb'})
+            spec_plot2.scene().sigMouseClicked.connect(self.mouseClickEvent)
+            #(32, 0, 129, 255)
+        
+        
+    def mouseClickEvent(self, mouseClickEvent):
+        # Check if event is inside image, and convert from screen/pixels to image xy indicies
+        # if self.plot.sceneBoundingRect().contains(pos):
+        #     mousePoint = self.plot.getViewBox().mapSceneToView(pos)
+        #     x_i = round(mousePoint.x())
+        #     y_i = round(mousePoint.y())
+        #     if x_i > 0 and x_i < self.frame.shape[0] and y_i > 0 and y_i < self.frame.shape[1]:
+        #         self.label_value.setText("({}, {}) = {:0.2f}".format(x_i, y_i, self.frame[y_i, x_i,0]))
+        #         return
+        self.plot.scene().sigMouseMoved.connect(self.mouseMovedEvent)
+        if self.x_i > 0 and self.x_i < self.frame.shape[0] and self.y_i > 0 and self.y_i < self.frame.shape[1]:
+            self.label_value.clear()
+            self.label_value.setText("({}, {}) = {:0.2f}".format(self.x_i, self.y_i, self.frame[self.y_i, self.x_i,0]))
+        
+    def mouseReleaseEvent(self, event):
+        # ensure that the left button was pressed *and* released within the
+        # geometry of the widget; if so, emit the signal;
+        if (self.pressPos is not None and 
+            event.button() == QtCore.Qt.LeftButton and 
+            event.pos() in self.rect()):
+                self.clicked.emit()
+        self.pressPos = None
+
+    def mouseMovedEvent(self, pos):
+        # Check if event is inside image, and convert from screen/pixels to image xy indicies
+        if self.plot.sceneBoundingRect().contains(pos):
+            mousePoint = self.plot.getViewBox().mapSceneToView(pos)
+            self.x_i = round(mousePoint.x())
+            self.y_i = round(mousePoint.y())
+        #     if self.x_i > 0 and self.x_i < self.frame.shape[0] and self.y_i > 0 and self.y_i < self.frame.shape[1]:
+        #         self.label_value.setText("({}, {}) = {:0.2f}".format(self.x_i, self.y_i, self.frame[self.y_i, self.x_i,0]))
+        #         return
+        # self.label_value.clear()
+
+def main():
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+    mainwindow = TestImage()
+    mainwindow.show()
+    sys.exit(app.exec_())
+
+if __name__ == '__main__':
+    main()
+
+
+
+###################################
+## GeeksforGeeks ColorMap
+###################################
+
+# # importing Qt widgets
+# from PyQt5.QtWidgets import *
+
+# # importing system
+# import sys
+
+# # importing numpy as np
 # import numpy as np
-# from PyQt5 import QtWidgets
+
+# # importing pyqtgraph as pg
 # import pyqtgraph as pg
-# from PIL import Image
+# from PyQt5.QtGui import *
+# from PyQt5.QtCore import *
+
+# from collections import namedtuple
 
 
-# class TestImage(QtWidgets.QMainWindow):
+# class Window(QMainWindow):
 
-#     def __init__(self):
-#         super().__init__()
+# 	def __init__(self):
+# 		super().__init__()
 
-#         # Basic UI layout
-#         self.statusbar = QtWidgets.QStatusBar(self)
-#         self.setStatusBar(self.statusbar)
-#         self.glw = pg.GraphicsLayoutWidget()
-#         self.setCentralWidget(self.glw)
+# 		# setting title
+# 		self.setWindowTitle("PyQtGraph")
 
-#         # Make image plot
-#         self.p1 = self.glw.addPlot()
-#         self.p1.getViewBox().setAspectLocked()
-#         # Draw axes and ticks above image/data
-#         [ self.p1.getAxis(ax).setZValue(10) for ax in self.p1.axes ]
-#         self.data = np.random.rand(120, 100)
-        
-#         self.image = Image.open('hgjart.JPG')
-#         self.frame = np.asarray(self.image)
-#         # self.frame = np.random.rand(120, 100)
-#         self.local_image = pg.ImageItem(self.frame)
-        
-#         self.img = pg.ImageItem(self.data)
-#         self.p1.addItem(self.local_image)
-#         # Centre axis ticks on pixel
-#         self.img.setPos(-0.5, -0.5)
+# 		# setting geometry
+# 		self.setGeometry(100, 100, 600, 500)
 
-#         # Swap commented lines to choose between hover or click events
-#         self.p1.scene().sigMouseMoved.connect(self.mouseMovedEvent)
-#         #self.p1.scene().sigMouseClicked.connect(self.mouseClickedEvent)
+# 		# icon
+# 		icon = QIcon("skin.png")
 
-#     def mouseClickedEvent(self, event):
-#         self.mouseMovedEvent(event.pos())
+# 		# setting icon to the window
+# 		self.setWindowIcon(icon)
 
-#     def mouseMovedEvent(self, pos):
-#         # Check if event is inside image, and convert from screen/pixels to image xy indicies
-#         if self.p1.sceneBoundingRect().contains(pos):
-#             mousePoint = self.p1.getViewBox().mapSceneToView(pos)
-#             x_i = round(mousePoint.x())
-#             y_i = round(mousePoint.y())
-#             if x_i > 0 and x_i < self.frame.shape[0] and y_i > 0 and y_i < self.frame.shape[1]:
-#                 self.statusbar.showMessage("({}, {}) = {:0.2f}".format(x_i, y_i, self.frame[x_i, y_i,0]))
-#                 return
-#         self.statusbar.clearMessage()
+# 		# calling method
+# 		self.UiComponents()
 
-# def main():
-#     import sys
-#     app = QtWidgets.QApplication(sys.argv)
-#     mainwindow = TestImage()
-#     mainwindow.show()
-#     sys.exit(app.exec_())
+# 		# showing all the widgets
+# 		self.show()
 
-# if __name__ == '__main__':
-#     main()
+# 		# setting fixed size of window
+# 		self.setFixedSize(QSize(600, 500))
+
+# 	# method for components
+# 	def UiComponents(self):
+
+# 		# creating a widget object
+# 		widget = QWidget()
+
+# 		# creating a label
+# 		label = QLabel("Geeksforgeeks Image View")
+
+# 		# setting minimum width
+# 		label.setMinimumWidth(130)
+
+# 		# making label do word wrap
+# 		label.setWordWrap(True)
+
+# 		# setting configuration options
+# 		pg.setConfigOptions(antialias=True)
+
+# 		# creating image view object
+# 		imv = pg.ImageView()
+
+# 		# Create random 3D data set with noisy signals
+# 		img = pg.gaussianFilter(np.random.normal(
+# 			size=(200, 200)), (5, 5)) * 20 + 100
+
+# 		# setting new axis to image
+# 		img = img[np.newaxis, :, :]
+
+# 		# decay data
+# 		decay = np.exp(-np.linspace(0, 0.3, 100))[:, np.newaxis, np.newaxis]
+
+# 		# random data
+# 		data = np.random.normal(size=(100, 200, 200))
+# 		data += img * decay
+# 		data += 2
+
+# 		# adding time-varying signal
+# 		sig = np.zeros(data.shape[0])
+# 		sig[30:] += np.exp(-np.linspace(1, 10, 70))
+# 		sig[40:] += np.exp(-np.linspace(1, 10, 60))
+# 		sig[70:] += np.exp(-np.linspace(1, 10, 30))
+
+# 		sig = sig[:, np.newaxis, np.newaxis] * 3
+# 		data[:, 50:60, 30:40] += sig
+
+# 		# Displaying the data and assign each frame a time value from 1.0 to 3.0
+# 		imv.setImage(data, xvals=np.linspace(1., 3., data.shape[0]))
+
+# 		# Set a custom color map
+# 		colors = [
+# 			(0, 0, 0),
+# 			(4, 5, 61),
+# 			(84, 42, 55),
+# 			(15, 87, 60),
+# 			(208, 17, 141),
+# 			(255, 255, 255)
+# 		]
+
+# 		# color map
+# 		cmap = pg.ColorMap(pos=np.linspace(0.0, 1.0, 6), color=colors)
+
+# 		# setting color map to the image view
+# 		imv.setColorMap(cmap)
+
+# 		# Creating a grid layout
+# 		layout = QGridLayout()
+
+# 		# minimum width value of the label
+# 		label.setFixedWidth(130)
+
+# 		# setting this layout to the widget
+# 		widget.setLayout(layout)
+
+# 		# adding label in the layout
+# 		layout.addWidget(label, 1, 0)
+
+# 		# plot window goes on right side, spanning 3 rows
+# 		layout.addWidget(imv, 0, 1, 3, 1)
+
+# 		# setting this widget as central widget of the main window
+# 		self.setCentralWidget(widget)
 
 
+# # create pyqt5 app
+# App = QApplication(sys.argv)
 
+# # create the instance of our Window
+# window = Window()
+
+# # start the app
+# sys.exit(App.exec())
 
 
 
 ########################################
-## Testing with exp (phase functions)
+## Testing with exp (phase functions) 
 ########################################
 
 # import numpy as np

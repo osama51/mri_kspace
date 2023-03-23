@@ -64,6 +64,9 @@
                  </property>
                 </widget>
                </item>
+               <item>
+                <widget class="PlotWidget" name="grUpdatedMain"/>
+               </item>
               </layout>
              </widget>
              <widget class="QWidget" name="widget_6" native="true">
@@ -851,6 +854,11 @@
  </widget>
  <customwidgets>
   <customwidget>
+   <class>PlotWidget</class>
+   <extends>QGraphicsView</extends>
+   <header>pyqtgraph</header>
+  </customwidget>
+  <customwidget>
    <class>GraphicsLayoutWidget</class>
    <extends>QGraphicsView</extends>
    <header>pyqtgraph</header>
@@ -858,7 +866,7 @@
   <customwidget>
    <class>ImageView</class>
    <extends>QGraphicsView</extends>
-   <header>pyqtgraph</header>
+   <header>pyqtgraph.widgets</header>
   </customwidget>
  </customwidgets>
  <resources/>

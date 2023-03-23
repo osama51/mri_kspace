@@ -1,0 +1,15 @@
+{
+    "time_step": 0.1,
+    "start_time": 50,
+    "Gz_amp": 0.4,
+    "Gz_time": 15,
+    "Gph_max_amp": 0.7,
+    "Gph_time": 4,
+    "Gx_amp": 0.4,
+    "Gx_time": 24,
+    "no_of_rows": 5,
+    "scaling_factor": 2,
+    "noise_scaling": 5,
+    "TR": 2000,
+    "TE": 80
+}
