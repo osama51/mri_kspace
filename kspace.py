@@ -97,6 +97,7 @@ class KSpace:
                 x_sum = np.sum(m_rotx[..., 0])
                 y_sum = np.sum(m_rotx[..., 1])
                 kspace[y, x] = complex(y_sum, x_sum)
+                # self.pp.pprint(Gy)
                 
                 # image = np.abs((np.fft.ifft2(self.k_space)))
                 

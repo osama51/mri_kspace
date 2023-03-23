@@ -36,6 +36,15 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         
         self.file_path_name = ""
         
+        self.weights = ["PD", "T1", "T2"]
+        self.selected_weight = self.weights[0]
+        self.pdRadioButton.toggled.connect(self.select_pd)
+        self.t1RadioButton.toggled.connect(self.select_t1)
+        self.t2RadioButton.toggled.connect(self.select_t2)
+        
+        self.selected_size = 0
+        self.sizeComboBox.currentIndexChanged.connect(self.select_size)
+        
         self.reconstDefaultSize.clicked.connect(lambda: self.reconstructedView.autoRange())
         self.phantomDefaultSize.clicked.connect(lambda: [self.phantomView.autoRange(), self.kspaceView.autoRange()])
         self.actionReconstruct.triggered.connect(lambda: [self.start_kspace(self.kspaceView, self.reconstructedView)])
@@ -54,13 +63,21 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.imageViews = [self.reconstructedView, self.phantomView, self.kspaceView]
         self.hideHisto()
         
+        self.select_size(self.selected_size)  
+        self.sequence()
 
         # Connect the mouseClicked signal to the custom slot
         # self.reconstructedView.mouseClicked.connect(self.handle_mouse_clicked)
-
-    def browse(self):
-        self.file_path_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', " ", "(*.png *.jpg *.jpeg)")
-        self.file_name, self.file_extension = path.splitext(self.file_path_name)
+    
+    def select_size(self, index):
+        self.selected_size = index
+        if(index == 0):
+            self.file_path_name = "weight/brain16_4.png"
+        elif(index == 1):
+            self.file_path_name = "weight/brain32_4.png"
+        elif(index == 2):
+            self.file_path_name = "weight/brain64_4.png"
+        
         self.phantom_img = cv2.imread(self.file_path_name,0)
         self.phantom_img = np.array(self.phantom_img)
         
@@ -68,18 +85,59 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.num_of_cols = self.phantom_img.shape[1]
         self.k_space = np.ones((self.num_of_rows, self.num_of_cols), dtype=np.complex64)
         
-        self.OOP()
+        self.prespec(self.selected_weight, self.phantom_img)
         self.draw_graph(self.phantomView)
+        
+        
+    def browse(self):
+        self.file_path_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', " ", "(*.png *.jpg *.jpeg)")
+        self.file_name, self.file_extension = path.splitext(self.file_path_name)
+        
+    def select_pd(self):
+        self.selected_weight = self.weights[0]
+        self.prespec(self.selected_weight, self.phantom_img)
+        self.draw_graph(self.phantomView)
+        
+    def select_t1(self):
+        self.selected_weight = self.weights[1]
+        self.prespec(self.selected_weight, self.phantom_img)
+        self.draw_graph(self.phantomView)
+        
+    def select_t2(self):
+        self.selected_weight = self.weights[2]
+        self.prespec(self.selected_weight, self.phantom_img)
+        self.draw_graph(self.phantomView)
+        
+    def prespec(self, typo ,img):
+        self.unique_img = np.unique(img)
+        self.LUT = np.array([self.unique_img,
+    				[ 250 ,170 ,85 ,0],
+    			    [ 85  , 100  ,170 ,200]])
+        edited_img = img.copy()
+        if typo == 'PD':
+            pass
+        elif typo == 'T2':
+            i=0
+            for element in self.LUT[0]:
+                edited_img[edited_img == element] =self.LUT[1,i]
+                i =i+1
+        elif typo == 'T1':
+            i=0
+            for element in self.LUT[0]:
+                edited_img[edited_img == element] =self.LUT[2,i]
+                i =i+1
+        self.weighted_img = edited_img
+
 
     def draw_graph(self, phantomView):
         phantomView.clear()
         
         self.dimen_x = self.phantom_img.shape[0]
         self.dimen_y = self.phantom_img.shape[1]
-        print(self.dimen_x)
+        # print(self.dimen_x)
         
         # self.frame = np.random.rand(120, 100)
-        img = pg.ImageItem(self.phantom_img)
+        # img = pg.ImageItem(self.weighted_img)
         
         # Interpret image data as row-major instead of col-major
         # pg.setConfigOptions(imageAxisOrder='row-major')
@@ -89,13 +147,9 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
 
         # spec_plot2.addItem(img) # PlotWidget with ImageItem - WORKING BUT AS AN ITEM
         
-        phantomView.setImage(self.phantom_img)        # ImgaeView
+        phantomView.setImage(self.weighted_img)        # ImgaeView
         # spec_plot2.scene().sigMouseClicked.connect(self.mouseClickEvent)
-        
-       
-        # Connect the mousePressEvent signal to the custom slot
-        self.reconstructedView.getView().mousePressEvent = self.handle_mouse_clicked
-       
+
         #  # self.circle_item = CircleItem(pos=(0, 0), radius=0.5, brush=QBrush(QColor(100, 50, 50, 0)))
         # self.circle_item = pg.ScatterPlotItem(size=10, symbol='o', brush='w')
         
@@ -105,7 +159,7 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         # self.phantomView.sigMouseClicked.MouseClickEvent(self.mouseMovedEvent, double=False)
 
     def handle_mouse_clicked(self, event):
-        print('I\'M PRESSED')
+        # print('I\'M PRESSED')
         self.label_value.clear()
         
         
@@ -114,19 +168,22 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         # # Create a CircleItem to display the mouse click position
         # self.circle_item = CircleItem(pos=(0, 0), radius=0.5, brush=QBrush(QColor(100, 50, 50, 0)))
         # self.phantomView.getView().addItem(self.circle_item)
-        
-        
-        
+
         # Get the mouse click position in image coordinates
         pos = self.reconstructedView.getView().mapSceneToView(event.pos())
         mousePoint = pos
         self.x_i = round(mousePoint.x())
         self.y_i = round(mousePoint.y())
         if self.x_i > 0 and self.x_i < self.phantom_img.shape[1] and self.y_i > 0 and self.y_i < self.phantom_img.shape[0]:
-            self.label_value.setText("({}, {}) = {:0.2f}".format(self.x_i, self.y_i, self.phantom_img[self.y_i, self.x_i]))
+            pd_value = self.phantom_img[self.y_i, self.x_i]
+            itemindex = np.where(self.unique_img == pd_value)
+            t1_value = self.LUT[1,itemindex[0][0]]
+            t2_value = self.LUT[2,itemindex[0][0]]
+            
+            print(pd_value, t1_value, t2_value)
+            self.label_value.setText("({}, {}) = PD{:0} T1:{:0} T2:{:0}".format(self.y_i, self.x_i, pd_value, t1_value, t2_value))
             return
         
-
         # # Update the CircleItem position and show it
         # self.circle_item.setPos(pos)
         # self.circle_item.setBrush(QBrush(QColor(255, 255, 255, 100)))
@@ -153,39 +210,34 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         # Stop the random selection
         self.kspacetimer.stop()
 
-            
+    # the display function will be repeated Ny times according to the number of rows
     def display_kspace(self, kspaceView, reconstructedView, kspace):
-        
         # kspaceView.clear()
         kspace_array = KSpace.build_kspace(KSpace(self.phantom_img), self.counter, kspace)
         # kspace_array[]
         # print(kspace_array)
         kspaceView.setImage(np.log(np.abs((kspace_array))))
-        print('kspace_array')
+        # print('kspace_array')
         self.reconstruct_image(reconstructedView, kspace_array)
         self.counter += 1
         if(self.counter >= self.dimen_x): self.counter = 0
         
     def reconstruct_image(self, reconstructedView, kspace):
-        print('reconstructed_image')
+        # print('reconstructed_image')
         reconstructedView.clear()
         image = np.abs((np.fft.ifft2(kspace)))
         reconstructedView.setImage(image)  # ImgaeView
+        
+        # Connect the mousePressEvent signal to the custom slot
+        self.reconstructedView.getView().mousePressEvent = self.handle_mouse_clicked
+       
         
     def hideHisto(self):
         for view in self.imageViews:
             view.ui.histogram.setFixedWidth(80)
             view.ui.roiBtn.hide()
             view.ui.menuBtn.hide()
-        
-    # def handle_mouse_clicked(self, event):
-    #     # Get the mouse click position in image coordinates
-    #     pos = self.getImageItem().mapFromScene(event.pos())
 
-    #     # Update the CircleItem position and show it
-    #     self.circle_item.setPos(pos)
-    #     self.circle_item.setBrush(QBrush(QColor(255, 255, 255, 100)))
-        
     def mouseClickEvent(self, mouseClickEvent):
         # Check if event is inside image, and convert from screen/pixels to image xy indicies
         # if self.plot.sceneBoundingRect().contains(pos):
@@ -223,7 +275,7 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
     def phantom(self):
         pass
 
-    def OOP(self):
+    def sequence(self):
         time_step=0.1
         start_time=50
         Gz_amp=0.4

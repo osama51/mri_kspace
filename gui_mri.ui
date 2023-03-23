@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1007</width>
+    <width>1076</width>
     <height>590</height>
    </rect>
   </property>
@@ -176,7 +176,7 @@
           </property>
           <layout class="QHBoxLayout" name="horizontalLayout_2">
            <item>
-            <widget class="QRadioButton" name="radioButton">
+            <widget class="QRadioButton" name="pdRadioButton">
              <property name="text">
               <string>PD</string>
              </property>
@@ -186,14 +186,14 @@
             </widget>
            </item>
            <item>
-            <widget class="QRadioButton" name="radioButton_2">
+            <widget class="QRadioButton" name="t1RadioButton">
              <property name="text">
               <string>T1</string>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QRadioButton" name="radioButton_3">
+            <widget class="QRadioButton" name="t2RadioButton">
              <property name="text">
               <string>T2</string>
              </property>
@@ -247,7 +247,23 @@
           </property>
           <layout class="QGridLayout" name="gridLayout_5">
            <item row="0" column="0">
-            <widget class="QComboBox" name="comboBox"/>
+            <widget class="QComboBox" name="sizeComboBox">
+             <item>
+              <property name="text">
+               <string>16x16</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>32x32</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>64x64</string>
+              </property>
+             </item>
+            </widget>
            </item>
           </layout>
          </widget>
@@ -336,7 +352,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1007</width>
+     <width>1076</width>
      <height>21</height>
     </rect>
    </property>
@@ -397,7 +413,7 @@
    <property name="icon">
     <iconset>
      <normaloff>icons/play_gray.png</normaloff>
-     <normalon>icons/play_gray.png</normalon>icons/play_gray.png</iconset>
+     <normalon>C:/Users/Mohamed/.designer/backup/icons/play_gray.png</normalon>icons/play_gray.png</iconset>
    </property>
    <property name="text">
     <string>Reconstruct</string>
