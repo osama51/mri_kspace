@@ -34,17 +34,13 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.glw = pg.GraphicsLayoutWidget()
         # self.setCentralWidget(self.glw)
         
-        self.phantom_img =cv2.imread("phantoms/brain16.png",0)
-        self.phantom_img = np.array(self.phantom_img)
-        self.num_of_rows = self.phantom_img.shape[0]
-        self.num_of_cols = self.phantom_img.shape[1]
-        self.k_space = np.ones((self.num_of_rows, self.num_of_cols), dtype=np.complex64)
-        
+        self.file_path_name = ""
         
         self.reconstDefaultSize.clicked.connect(lambda: self.reconstructedView.autoRange())
         self.phantomDefaultSize.clicked.connect(lambda: [self.phantomView.autoRange(), self.kspaceView.autoRange()])
         self.actionReconstruct.triggered.connect(lambda: [self.start_kspace(self.kspaceView, self.reconstructedView)])
         self.actionStop.triggered.connect(self.stop_timer)
+        self.actionOpen.triggered.connect(self.browse)
         # self.markerCheckBox.stateChanged.connect(self.set_point)
         
         # self.plot = self.phantomView.addPlot()
@@ -52,20 +48,29 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.y_i = 0
         
         self.counter = 0
-        self.interval = 1000
+        self.interval = 2000
         # self.draw_graph(self.plot)
         
         self.imageViews = [self.reconstructedView, self.phantomView, self.kspaceView]
         self.hideHisto()
         
-        self.OOP()
-        self.draw_graph(self.phantomView)
-        
 
         # Connect the mouseClicked signal to the custom slot
         # self.reconstructedView.mouseClicked.connect(self.handle_mouse_clicked)
 
+    def browse(self):
+        self.file_path_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', " ", "(*.png *.jpg *.jpeg)")
+        self.file_name, self.file_extension = path.splitext(self.file_path_name)
+        self.phantom_img = cv2.imread(self.file_path_name,0)
+        self.phantom_img = np.array(self.phantom_img)
         
+        self.num_of_rows = self.phantom_img.shape[0]
+        self.num_of_cols = self.phantom_img.shape[1]
+        self.k_space = np.ones((self.num_of_rows, self.num_of_cols), dtype=np.complex64)
+        
+        self.OOP()
+        self.draw_graph(self.phantomView)
+
     def draw_graph(self, phantomView):
         phantomView.clear()
         
@@ -152,7 +157,7 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
     def display_kspace(self, kspaceView, reconstructedView, kspace):
         
         # kspaceView.clear()
-        kspace_array = KSpace.build_kspace(KSpace(), self.counter, kspace)
+        kspace_array = KSpace.build_kspace(KSpace(self.phantom_img), self.counter, kspace)
         # kspace_array[]
         # print(kspace_array)
         kspaceView.setImage(np.log(np.abs((kspace_array))))

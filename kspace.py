@@ -6,15 +6,17 @@ import matplotlib.pyplot as plt
 import scipy.fftpack as spfft
 
 class KSpace:
-    def __init__(self, parent=None):
+    def __init__(self, phantom):
         super(KSpace,self).__init__()
         
         self.pp = pprint.PrettyPrinter(sort_dicts=True)
     
         # Define phantom
-        phantom =cv2.imread("phantoms/brain16.png",0)
-        self.phantom = np.array(phantom)
-        print(self.phantom.shape, 'phantom')
+        # phantom =cv2.imread("phantoms/brain16.png",0)
+        # self.phantom = np.array(phantom)
+        # print(self.phantom.shape, 'phantom')
+        
+        self.phantom = phantom
         self.num_of_rows = self.phantom.shape[0]
         self.num_of_cols = self.phantom.shape[1]
         
