@@ -96,11 +96,18 @@
            <item row="2" column="1">
             <widget class="QGroupBox" name="groupBox_11">
              <property name="title">
-              <string>GroupBox</string>
+              <string>RO Time</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_7">
               <item row="0" column="0">
-               <widget class="QDial" name="dial_4"/>
+               <widget class="QDial" name="dial_4">
+                <property name="minimum">
+                 <number>8</number>
+                </property>
+                <property name="maximum">
+                 <number>20</number>
+                </property>
+               </widget>
               </item>
              </layout>
             </widget>
@@ -398,6 +405,7 @@
    <addaction name="actionOpen"/>
    <addaction name="separator"/>
    <addaction name="actionReconstruct"/>
+   <addaction name="actionPause"/>
    <addaction name="actionStop"/>
    <addaction name="separator"/>
   </widget>
@@ -419,8 +427,11 @@
   <action name="actionReconstruct">
    <property name="icon">
     <iconset>
-     <normaloff>icons/play_gray.png</normaloff>
-     <normalon>C:/Users/Mohamed/.designer/backup/icons/play_gray.png</normalon>icons/play_gray.png</iconset>
+     <normaloff>icons/play_white.png</normaloff>
+     <normalon>icons/play_gray.png</normalon>
+     <disabledoff>icons/play_gray.png</disabledoff>
+     <disabledon>icons/play_gray.png</disabledon>
+     <activeoff>icons/play_gray.png</activeoff>icons/play_white.png</iconset>
    </property>
    <property name="text">
     <string>Reconstruct</string>
@@ -432,7 +443,11 @@
   <action name="actionStop">
    <property name="icon">
     <iconset>
-     <normaloff>icons/stop_gray.png</normaloff>icons/stop_gray.png</iconset>
+     <normaloff>icons/stop_white.png</normaloff>
+     <normalon>icons/stop_gray.png</normalon>
+     <disabledoff>icons/stop_gray.png</disabledoff>
+     <disabledon>icons/stop_gray.png</disabledon>
+     <activeoff>icons/stop_gray.png</activeoff>icons/stop_white.png</iconset>
    </property>
    <property name="text">
     <string>Stop</string>
@@ -451,6 +466,20 @@
    </property>
    <property name="toolTip">
     <string>Open</string>
+   </property>
+  </action>
+  <action name="actionPause">
+   <property name="icon">
+    <iconset>
+     <normaloff>icons/pause_white.png</normaloff>
+     <normalon>icons/pause_gray.png</normalon>
+     <disabledoff>icons/pause_gray.png</disabledoff>
+     <disabledon>icons/pause_gray.png</disabledon>
+     <activeoff>icons/pause_gray.png</activeoff>
+     <activeon>icons/pause_gray.png</activeon>icons/pause_white.png</iconset>
+   </property>
+   <property name="text">
+    <string>Pause</string>
    </property>
   </action>
  </widget>

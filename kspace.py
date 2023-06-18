@@ -87,6 +87,10 @@ class KSpace:
                 Gx, _ = np.meshgrid(np.linspace(0, (x * self.dkx) * (self.num_of_cols - 1), self.num_of_cols),
                                     np.linspace(0, (y * self.dky) * (self.num_of_rows - 1), self.num_of_rows))
     
+                # add both angles
+                # thread
+                # histo bar
+                # 
                 for col in range(self.num_of_cols):
                     for row in range(self.num_of_rows):
                         # Phase Encoding 

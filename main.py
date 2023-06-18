@@ -11,7 +11,7 @@ import cv2
 import qdarktheme
 import json
 import matplotlib.pyplot as plt
-
+import threading
 from kspace import KSpace
 from circle_item import CircleItem
 import sequence
@@ -49,18 +49,22 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.phantomDefaultSize.clicked.connect(lambda: [self.phantomView.autoRange(), self.kspaceView.autoRange()])
         self.actionReconstruct.triggered.connect(lambda: [self.start_kspace(self.kspaceView, self.reconstructedView)])
         self.actionStop.triggered.connect(self.stop_timer)
+        self.actionPause.triggered.connect(self.pause_timer)
         self.actionOpen.triggered.connect(self.browse)
         # self.markerCheckBox.stateChanged.connect(self.set_point)
         
         self.rfDial.valueChanged.connect(self.sequence)
         
-        
+        self.actionPause.setEnabled(False)
+        self.actionStop.setEnabled(False)
+        print("for some reason I restarted!")
         # self.plot = self.phantomView.addPlot()
         self.x_i = 0
         self.y_i = 0
         
         self.counter = 0
         self.interval = 2000
+        self.should_stop = False
         # self.draw_graph(self.plot)
         
         self.imageViews = [self.reconstructedView, self.phantomView, self.kspaceView]
@@ -114,7 +118,7 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
     def prespec(self, typo ,img):
         self.unique_img = np.unique(img)
         self.LUT = np.array([self.unique_img,
-    				[ 250 ,170 ,85 ,0],
+    				[ 255 ,170 ,85 ,0],
     			    [ 85  , 100  ,170 ,200]])
         edited_img = img.copy()
         if typo == 'PD':
@@ -194,10 +198,14 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         # # Update the ScatterPlotItem position and show it
         # self.circle_item.setData(pos=[(pos.x(), pos.y())], brush=QtGui.QColor(255, 255, 255, 0))
 
-        
+    def init_kspace(self):
+        self.k_space = np.ones((self.num_of_rows, self.num_of_cols), dtype=np.complex64)
         
     def start_kspace(self, kspaceView, reconstructedView):
-        self.k_space = np.ones((self.num_of_rows, self.num_of_cols), dtype=np.complex64)
+        self.actionReconstruct.setEnabled(False)
+        self.actionStop.setEnabled(True)
+        self.actionPause.setEnabled(True)
+        
         kspaceView.clear()
         reconstructedView.clear()
         # Repeating timer, calls display_kspace over and over.
@@ -205,25 +213,53 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.kspacetimer.setInterval(self.interval)
         self.kspacetimer.timeout.connect(lambda: self.display_kspace(kspaceView, reconstructedView, self.k_space))
         self.kspacetimer.start()
+        
+        # while(not self.should_stop):
+        #     # Create a background thread
+        #     thread = threading.Thread(target=self.display_kspace(kspaceView, reconstructedView, self.k_space))
+        #     thread.start()
+        #     thread.join()
 
-        # Single oneshot which stops the selection after 5 seconds
-        QtCore.QTimer.singleShot((self.dimen_x + 1) * self.interval, self.stop_timer)
+        # # Single oneshot which stops the selection after 5 seconds
+        # QtCore.QTimer.singleShot((self.dimen_x + 1) * self.interval, self.stop_timer)
 
     def stop_timer(self):
         # Stop the random selection
+        self.counter = 0
+        self.init_kspace()
         self.kspacetimer.stop()
+        self.actionReconstruct.setEnabled(True)
+        self.actionStop.setEnabled(False)
+        print("I stopped")
+        
+    def pause_timer(self):
+        self.kspacetimer.stop()
+        self.actionPause.setEnabled(False)
+        self.actionReconstruct.setEnabled(True)
+        
+    def stop_thread(self):
+        self.should_stop = True
 
     # the display function will be repeated Ny times according to the number of rows
     def display_kspace(self, kspaceView, reconstructedView, kspace):
         # kspaceView.clear()
         kspace_array = KSpace.build_kspace(KSpace(self.phantom_img), self.counter, kspace)
+        self.kspace = kspace_array
         # kspace_array[]
         # print(kspace_array)
         kspaceView.setImage(np.log(np.abs((kspace_array))))
         # print('kspace_array')
         self.reconstruct_image(reconstructedView, kspace_array)
         self.counter += 1
-        if(self.counter >= self.dimen_x): self.counter = 0
+        print("counter", self.counter)
+        if(self.counter >= self.dimen_x): 
+            self.counter = 0
+            # self.stop_timer()
+            self.stop_thread()
+            self.actionReconstruct.setEnabled(True)
+            self.actionStop.setEnabled(False)
+            self.actionPause.setEnabled(False)
+            print("I'm done, do you witness the greatness?\nYES! WHAT A BRAIN!")
         
     def reconstruct_image(self, reconstructedView, kspace):
         # print('reconstructed_image')
