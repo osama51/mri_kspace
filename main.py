@@ -12,10 +12,64 @@ import qdarktheme
 import json
 import matplotlib.pyplot as plt
 import threading
+import asyncio
 from kspace import KSpace
 from circle_item import CircleItem
 import sequence
 import phantom
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
+
+
+class Stop: 
+    should_stop = False
+    counter = 0
+    restart = False
+    
+    
+class ProcessRunnable(QRunnable):
+    def __init__(self, target, args):
+        QRunnable.__init__(self)
+        self.target = target
+        self.args = args
+
+    def run(self):
+        self.target(*self.args)
+
+    def start(self):
+        QThreadPool.globalInstance().start(self)
+
+
+# the display function will be repeated Ny times according to the number of rows
+def display_kspace(shared_variables, reconstruct_image, phantom_img, init_kspace):
+    shared_variables['kspace'] = KSpace.build_kspace(KSpace(shared_variables['phantom_img']), Stop.counter, shared_variables['kspace'])
+    shared_variables['kspace_view'].setImage(np.log(np.abs((shared_variables['kspace']))))
+    
+    reconstruct_image(shared_variables['reconstructed_view'], shared_variables['kspace'])
+    Stop.counter += 1
+    print("counter", Stop.counter)
+    if(Stop.counter >= shared_variables['dimen_x']): 
+        Stop.counter = 0
+        Stop.should_stop = True
+        init_kspace()
+        # self.stop_timer()
+        # self.stop_thread()
+        shared_variables['actionReconstruct'].setEnabled(True)
+        shared_variables['actionStop'].setEnabled(False)
+        shared_variables['actionPause'].setEnabled(False)
+        print("I'm done, do you witness the greatness?\nYES! WHAT A BRAIN!")
+        
+    print("should stop: ", Stop.should_stop)
+    while not Stop.should_stop:
+        display_kspace(shared_variables, reconstruct_image, phantom_img, init_kspace)
+        
+    if(Stop.restart):
+        print("yes I got restarted")
+        Stop.counter = 0
+        Stop.should_stop = True
+        init_kspace()
+        Stop.restart = False
+    # if(Stop.should_stop): Stop.should_stop = False
 
 
 FORM_CLASS,_ = loadUiType(path.join(path.dirname(__file__), "gui_mri.ui"))
@@ -47,7 +101,7 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         
         self.reconstDefaultSize.clicked.connect(lambda: self.reconstructedView.autoRange())
         self.phantomDefaultSize.clicked.connect(lambda: [self.phantomView.autoRange(), self.kspaceView.autoRange()])
-        self.actionReconstruct.triggered.connect(lambda: [self.start_kspace(self.kspaceView, self.reconstructedView)])
+        self.actionReconstruct.triggered.connect(lambda: self.start_kspace(self.kspaceView, self.reconstructedView))
         self.actionStop.triggered.connect(self.stop_timer)
         self.actionPause.triggered.connect(self.pause_timer)
         self.actionOpen.triggered.connect(self.browse)
@@ -199,67 +253,75 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         # self.circle_item.setData(pos=[(pos.x(), pos.y())], brush=QtGui.QColor(255, 255, 255, 0))
 
     def init_kspace(self):
+        print("fshhhhhh. kspace flushed!")
         self.k_space = np.ones((self.num_of_rows, self.num_of_cols), dtype=np.complex64)
+        return self.k_space
         
     def start_kspace(self, kspaceView, reconstructedView):
+        self.should_stop = False
+        Stop.should_stop = False
         self.actionReconstruct.setEnabled(False)
         self.actionStop.setEnabled(True)
         self.actionPause.setEnabled(True)
-        
         kspaceView.clear()
         reconstructedView.clear()
-        # Repeating timer, calls display_kspace over and over.
-        self.kspacetimer = QtCore.QTimer()
-        self.kspacetimer.setInterval(self.interval)
-        self.kspacetimer.timeout.connect(lambda: self.display_kspace(kspaceView, reconstructedView, self.k_space))
-        self.kspacetimer.start()
+        # # Repeating timer, calls display_kspace over and over.
+        # self.kspacetimer = QtCore.QTimer()
+        # self.kspacetimer.setInterval(self.interval)
+        # self.kspacetimer.timeout.connect(lambda: self.display_kspace(kspaceView, reconstructedView, self.k_space))
+        # self.kspacetimer.start()
         
-        # while(not self.should_stop):
-        #     # Create a background thread
-        #     thread = threading.Thread(target=self.display_kspace(kspaceView, reconstructedView, self.k_space))
-        #     thread.start()
-        #     thread.join()
+        # kspace_view = kspaceView
+        # reconstructed_view = reconstructedView
+        # kspace = self.k_space
+        # phantom_img = self.phantom_img
+        # counter = self.counter
+        # dimen_x = self.dimen_x
+        # actionReconstruct = self.actionReconstruct
+        # actionStop = self.actionStop
+        # actionPause = self.actionPause
+            
 
-        # # Single oneshot which stops the selection after 5 seconds
-        # QtCore.QTimer.singleShot((self.dimen_x + 1) * self.interval, self.stop_timer)
+        self.shared_variables = {
+            'kspace_view': kspaceView,
+            'reconstructed_view': reconstructedView,
+            'kspace': self.k_space,
+            'phantom_img': self.phantom_img,
+            'counter': Stop.counter,
+            'dimen_x': self.dimen_x,
+            'actionReconstruct': self.actionReconstruct,
+            'actionStop': self.actionStop,
+            'actionPause': self.actionPause,
+            'should_stop': self.should_stop
+            }
+
+        
+        # Create and start the background task
+        task = ProcessRunnable(target=display_kspace, args=(self.shared_variables, self.reconstruct_image, self.phantom_img, self.init_kspace))
+        task.start()
+
 
     def stop_timer(self):
         # Stop the random selection
-        self.counter = 0
+        Stop.counter = 0
+        Stop.restart = True
         self.init_kspace()
-        self.kspacetimer.stop()
+        # self.kspacetimer.stop()
+        self.stop_background_process()
+
         self.actionReconstruct.setEnabled(True)
         self.actionStop.setEnabled(False)
         print("I stopped")
         
     def pause_timer(self):
-        self.kspacetimer.stop()
+        # self.kspacetimer.stop()
+        self.stop_background_process()
         self.actionPause.setEnabled(False)
         self.actionReconstruct.setEnabled(True)
         
-    def stop_thread(self):
-        self.should_stop = True
+    def stop_background_process(self):
+        Stop.should_stop = True
 
-    # the display function will be repeated Ny times according to the number of rows
-    def display_kspace(self, kspaceView, reconstructedView, kspace):
-        # kspaceView.clear()
-        kspace_array = KSpace.build_kspace(KSpace(self.phantom_img), self.counter, kspace)
-        self.kspace = kspace_array
-        # kspace_array[]
-        # print(kspace_array)
-        kspaceView.setImage(np.log(np.abs((kspace_array))))
-        # print('kspace_array')
-        self.reconstruct_image(reconstructedView, kspace_array)
-        self.counter += 1
-        print("counter", self.counter)
-        if(self.counter >= self.dimen_x): 
-            self.counter = 0
-            # self.stop_timer()
-            self.stop_thread()
-            self.actionReconstruct.setEnabled(True)
-            self.actionStop.setEnabled(False)
-            self.actionPause.setEnabled(False)
-            print("I'm done, do you witness the greatness?\nYES! WHAT A BRAIN!")
         
     def reconstruct_image(self, reconstructedView, kspace):
         # print('reconstructed_image')
@@ -409,255 +471,9 @@ def main():
     # )
     mainwindow = MriMain()
     mainwindow.show()
-    sys.exit(app.exec_())
 
+    # Run the PyQt event loop
+    sys.exit(app.exec_())
+    
 if __name__ == '__main__':
     main()
-
-
-
-# import numpy as np
-# from PyQt5 import QtWidgets
-# import pyqtgraph as pg
-# from PIL import Image
-# from PyQt5.uic import loadUiType
-# from PyQt5 import QtCore, QtGui
-# from pyqtgraph import ImageView
-# from PyQt5.QtGui import QBrush, QColor
-# from os import path
-# from kspace import KSpace
-# from circle_item import CircleItem
-# import cv2
-# import qdarktheme
-# import asyncio
-
-
-# FORM_CLASS,_ = loadUiType(path.join(path.dirname(__file__), "gui_mri.ui"))
-# class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
-
-#     def __init__(self):
-#         # Interpret image data as row-major instead of col-major
-#         pg.setConfigOptions(imageAxisOrder='row-major') 
-#         pg.setConfigOption('background', (15,20, 20))
-#         super(MriMain,self).__init__()
-
-#         # Basic UI layout
-#         self.setupUi(self)
-#         self.statusbar = QtWidgets.QStatusBar(self)
-#         self.setStatusBar(self.statusbar)
-#         self.glw = pg.GraphicsLayoutWidget()
-#         # self.setCentralWidget(self.glw)
-        
-#         self.phantom_img =cv2.imread("phantoms/brain_20p.jpg",0)
-#         self.phantom_img = np.array(self.phantom_img)
-#         self.num_of_rows = self.phantom_img.shape[0]
-#         self.num_of_cols = self.phantom_img.shape[1]
-#         self.k_space = np.ones((self.num_of_rows, self.num_of_cols), dtype=np.complex64)
-        
-#         # Async
-#         self.loop = asyncio.get_event_loop()
-#         self.task = self.loop.create_task(self.update_label())
-        
-        
-#         self.reconstDefaultSize.clicked.connect(lambda: self.reconstructedView.autoRange())
-#         self.phantomDefaultSize.clicked.connect(lambda: [self.phantomView.autoRange(), self.kspaceView.autoRange()])
-#         self.actionPlay.triggered.connect(lambda: self.start_kspace(self.kspaceView, self.reconstructedView))
-#         # self.markerCheckBox.stateChanged.connect(self.set_point)
-        
-#         # self.plot = self.phantomView.addPlot()
-#         self.x_i = 0
-#         self.y_i = 0
-        
-#         self.counter = 0
-#         self.interval = 1000
-#         # self.draw_graph(self.plot)
-        
-#         self.imageViews = [self.reconstructedView, self.phantomView, self.kspaceView]
-#         self.hideHisto()
-        
-#         self.draw_graph(self.phantomView)
-        
-
-#         # Connect the mouseClicked signal to the custom slot
-#         # self.reconstructedView.mouseClicked.connect(self.handle_mouse_clicked)
-
-        
-#     def draw_graph(self, phantomView):
-#         phantomView.clear()
-        
-#         self.dimen_x = self.phantom_img.shape[0]
-#         self.dimen_y = self.phantom_img.shape[1]
-#         print(self.dimen_x)
-        
-#         # self.frame = np.random.rand(120, 100)
-#         img = pg.ImageItem(self.phantom_img)
-        
-#         # Interpret image data as row-major instead of col-major
-#         # pg.setConfigOptions(imageAxisOrder='row-major')
-#         # pg.mkQApp()
-        
-#         # img = pg.ImageItem()
-
-#         # spec_plot2.addItem(img) # PlotWidget with ImageItem - WORKING BUT AS AN ITEM
-        
-#         phantomView.setImage(self.phantom_img)        # ImgaeView
-#         # spec_plot2.scene().sigMouseClicked.connect(self.mouseClickEvent)
-        
-       
-#         # Connect the mousePressEvent signal to the custom slot
-#         self.phantomView.getView().mousePressEvent = self.handle_mouse_clicked
-       
-#         #  # self.circle_item = CircleItem(pos=(0, 0), radius=0.5, brush=QBrush(QColor(100, 50, 50, 0)))
-#         # self.circle_item = pg.ScatterPlotItem(size=10, symbol='o', brush='w')
-        
-#         # # Connect the mousePressEvent signal to the custom slot
-#         # self.phantomView.getView().mousePressEvent = self.handle_mouse_clicked
-        
-#         # self.phantomView.sigMouseClicked.MouseClickEvent(self.mouseMovedEvent, double=False)
-
-#     def handle_mouse_clicked(self, event):
-#         print('I\'M PRESSED')
-#         self.label_value.clear()
-        
-#         # self.phantomView.getView().removeItem(self.circle_item)
-        
-#         # # Create a CircleItem to display the mouse click position
-#         # self.circle_item = CircleItem(pos=(0, 0), radius=0.5, brush=QBrush(QColor(100, 50, 50, 0)))
-#         # self.phantomView.getView().addItem(self.circle_item)
-        
-
-#         # Get the mouse click position in image coordinates
-#         pos = self.phantomView.getView().mapSceneToView(event.pos())
-#         mousePoint = pos
-#         self.x_i = round(mousePoint.x())
-#         self.y_i = round(mousePoint.y())
-#         if self.x_i > 0 and self.x_i < self.phantom_img.shape[0] and self.y_i > 0 and self.y_i < self.phantom_img.shape[1]:
-#             self.label_value.setText("({}, {}) = {:0.2f}".format(self.x_i, self.y_i, self.phantom_img[self.y_i, self.x_i]))
-#             return
-        
-
-#         # # Update the CircleItem position and show it
-#         # self.circle_item.setPos(pos)
-#         # self.circle_item.setBrush(QBrush(QColor(255, 255, 255, 100)))
-        
-#         # # Update the ScatterPlotItem position and show it
-#         # self.circle_item.setData(pos=[(pos.x(), pos.y())], brush=QtGui.QColor(255, 255, 255, 0))
-
-        
-        
-#     def start_kspace(self, kspaceView, reconstructedView):
-#         self.k_space = np.ones((self.num_of_rows, self.num_of_cols), dtype=np.complex64)
-#         kspaceView.clear()
-#         reconstructedView.clear()
-#         # Repeating timer, calls display_kspace over and over.
-#         self.kspacetimer = QtCore.QTimer()
-#         self.kspacetimer.setInterval(self.interval)
-#         self.kspacetimer.timeout.connect(lambda: self.display_kspace(kspaceView, reconstructedView, self.k_space))
-#         self.kspacetimer.start()
-
-#         # Single oneshot which stops the selection after 5 seconds
-#         QtCore.QTimer.singleShot((self.dimen_x + 1) * self.interval, self.stop_timer)
-
-#     def stop_timer(self):
-#         # Stop the random selection
-#         self.kspacetimer.stop()
-
-            
-#     async def update_label(self):
-#        for i in range(self.dimen_x):
-#            value = await self.loop.run_in_executor(None, self.get_value)
-#            self.label.config(text=f"Value: {value}")
-#            await asyncio.sleep(1)
-           
-#     def get_value(self):
-#         # This is an example function that returns a random number
-#         self.kspaceView.setImage(np.log(np.abs((self.k_space))))
-#         self.reconstruct_image(self.reconstructedView, self.k_space)
-    
-#     def display_kspace(self, kspaceView, reconstructedView, kspace):
-        
-#         # kspaceView.clear()
-#         self.k_space = KSpace.build_kspace(KSpace(), self.counter, kspace)
-#         # kspace_array[]
-#         # print(kspace_array)
-#         kspaceView.setImage(np.log(np.abs((self.k_space))))
-#         print('kspace_array')
-#         self.reconstruct_image(reconstructedView, self.k_space)
-#         self.counter += 1
-#         if(self.counter >= self.dimen_x): self.counter = 0
-        
-#         return 
-        
-        
-#     def reconstruct_image(self, reconstructedView, kspace):
-#         print('reconstructed_image')
-#         reconstructedView.clear()
-#         image = np.abs((np.fft.ifft2(kspace)))
-#         reconstructedView.setImage(image)  # ImgaeView
-        
-#     def hideHisto(self):
-#         for view in self.imageViews:
-#             view.ui.histogram.setFixedWidth(80)
-#             view.ui.roiBtn.hide()
-#             view.ui.menuBtn.hide()
-        
-#     # def handle_mouse_clicked(self, event):
-#     #     # Get the mouse click position in image coordinates
-#     #     pos = self.getImageItem().mapFromScene(event.pos())
-
-#     #     # Update the CircleItem position and show it
-#     #     self.circle_item.setPos(pos)
-#     #     self.circle_item.setBrush(QBrush(QColor(255, 255, 255, 100)))
-        
-#     def mouseClickEvent(self, mouseClickEvent):
-#         # Check if event is inside image, and convert from screen/pixels to image xy indicies
-#         # if self.plot.sceneBoundingRect().contains(pos):
-#         #     mousePoint = self.plot.getViewBox().mapSceneToView(pos)
-#         #     x_i = round(mousePoint.x())
-#         #     y_i = round(mousePoint.y())
-#         #     if x_i > 0 and x_i < self.frame.shape[0] and y_i > 0 and y_i < self.frame.shape[1]:
-#         #         self.label_value.setText("({}, {}) = {:0.2f}".format(x_i, y_i, self.frame[y_i, x_i,0]))
-#         #         return
-#         self.plot.scene().sigMouseMoved.connect(self.mouseMovedEvent)
-#         if self.x_i > 0 and self.x_i < self.frame.shape[0] and self.y_i > 0 and self.y_i < self.frame.shape[1]:
-#             self.label_value.clear()
-#             self.label_value.setText("({}, {}) = {:0.2f}".format(self.x_i, self.y_i, self.frame[self.y_i, self.x_i,0]))
-        
-#     def mouseReleaseEvent(self, event):
-#         # ensure that the left button was pressed *and* released within the
-#         # geometry of the widget; if so, emit the signal;
-#         if (self.pressPos is not None and 
-#             event.button() == QtCore.Qt.LeftButton and 
-#             event.pos() in self.rect()):
-#                 self.clicked.emit()
-#         self.pressPos = None
-
-#     def mouseMovedEvent(self, pos):
-#         # Check if event is inside image, and convert from screen/pixels to image xy indicies
-#         if self.phantomView.sceneBoundingRect().contains(pos):
-#             mousePoint = self.plot.getViewBox().mapSceneToView(pos)
-#             self.x_i = round(mousePoint.x())
-#             self.y_i = round(mousePoint.y())
-#             if self.x_i > 0 and self.x_i < self.phantom.shape[0] and self.y_i > 0 and self.y_i < self.phantom.shape[1]:
-#                 self.label_value.setText("({}, {}) = {:0.2f}".format(self.x_i, self.y_i, self.phantom[self.y_i, self.x_i,0]))
-#                 return
-#         self.label_value.clear()
-
-
-# def main():
-#     import sys
-#     app = QtWidgets.QApplication(sys.argv)
-#     qdarktheme.setup_theme("dark")
-#     # qdarktheme.setup_theme(
-#     #     custom_colors={
-#     #         "[light]": {
-#     #             "background": "#3f4042",
-#     #         }
-#     #     }
-#     # )
-#     mainwindow = MriMain()
-#     mainwindow.show()
-#     sys.exit(app.exec_())
-
-# if __name__ == '__main__':
-#     main()
