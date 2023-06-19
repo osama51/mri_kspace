@@ -172,8 +172,8 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
     def prespec(self, typo ,img):
         self.unique_img = np.unique(img)
         self.LUT = np.array([self.unique_img,
-    				[ 255 ,170 ,85 ,0],
-    			    [ 85  , 100  ,170 ,200]])
+    				[ 254 ,102 ,84 ,1],
+    			    [ 83  , 100  ,169 ,200]])
         edited_img = img.copy()
         if typo == 'PD':
             pass
@@ -182,11 +182,13 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
             for element in self.LUT[0]:
                 edited_img[edited_img == element] =self.LUT[1,i]
                 i =i+1
+        
         elif typo == 'T1':
             i=0
             for element in self.LUT[0]:
                 edited_img[edited_img == element] =self.LUT[2,i]
                 i =i+1
+            # print(edited_img)
         self.weighted_img = edited_img
 
 

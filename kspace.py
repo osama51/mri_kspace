@@ -41,15 +41,37 @@ class KSpace:
                           [np.sin(theta), np.cos(theta), 0],
                           [0, 0, 1]])
     
+    def decay(self, TE, TR, T1, T2):
+        return np.array([[np.exp(-TE / T2), 0, 0],
+                         [0, np.exp(-TE / T2), 0],
+                         [0, 0, np.exp(-TR / T1)]])
+
+    
     def RF_pulse(self):
         # RF
         # Compute magnetization vectors for all pixels
         mx = np.cos(np.pi/2) * self.phantom
         my = np.sin(np.pi/2) * self.phantom
-        mz = np.zeros_like(self.phantom)
+        # mz = np.zeros_like(self.phantom)
+        mz = np.cos(np.pi/2) * self.phantom
         m = np.stack([mx, my, mz], axis=-1)
         
         return m
+    
+    def RF_pulse_rotation(self, theta):
+        mx = np.zeros_like(self.phantom)
+        my = np.zeros_like(self.phantom)
+        mz = self.phantom
+        m_ = np.stack([mx, my, mz], axis=-1)
+        m_rf = m_.copy()
+        
+        for col in range(self.num_of_cols):
+            for row in range(self.num_of_rows):
+                m_rf[row, col, :] = np.dot(self.Rx(theta),m_rf[row, col, :])
+                # m_rf[row, col, :] = np.dot(self.Rz(np.pi/4), m_rf[row, col, :])
+                
+        
+        return m_rf
     
     
     
@@ -75,6 +97,7 @@ class KSpace:
         # y and x are iterators in K-Space
         for y in range(counter, counter + 1):
             m = self.RF_pulse()
+            # m = self.RF_pulse_rotation(np.pi/2)
             m_rot = m.copy()
             m_rotx = m.copy()
         
@@ -122,4 +145,9 @@ class KSpace:
     # ax4.imshow(np.log(np.abs((self.real_kspace))), cmap='gray')
     # ax4.set_title('Real K-Space')
     # plt.show()
-
+    
+    
+# phantom =cv2.imread("phantoms/brain16.png",0)
+# phantom = np.array(phantom)
+# m1 = KSpace(phantom).RF_pulse()
+# m2 = KSpace(phantom).RF_pulse_rotation(np.pi/2)
