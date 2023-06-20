@@ -11,6 +11,12 @@ class Temp:
     m64 = np.ndarray((64,64,3))
     temp_counter = 0
     
+class Parameters:
+    TE = 0
+    TR = 0
+    RF = 0
+    
+    
 class KSpace:
     def __init__(self, phantom):
         super(KSpace,self).__init__()
@@ -36,10 +42,20 @@ class KSpace:
         self.real_kspace = np.fft.fft2(self.phantom)
         
         # in ms
-        self.T1 = 400
-        self.T2 = 40
-        self.TR = 2000
-        self.TE = 15
+        # self.T1 = 400
+        # self.T2 = 40
+        self.TR = Parameters.TR
+        self.TE = Parameters.TE
+        
+        self.tissue1_T2 = 70
+        self.tissue2_T2 = 80
+        # self.tissue3_T2 = 300
+        self.tissue3_T2 = 110
+        
+        self.tissue1_T1 = 500
+        self.tissue2_T1 = 800
+        # self.tissue3_T1 = 2500
+        self.tissue3_T1 = 1200
         
         # self.m = self.magnetization_vector(self.phantom)
     
@@ -100,13 +116,12 @@ class KSpace:
         self.num_of_rows = self.phantom.shape[0]
         self.num_of_cols = self.phantom.shape[1]
 
-
-
         # y and x are iterators in K-Space
         for y in range(counter, counter + 1):
             if(counter == 0):
                 m = self.magnetization_vector(self.phantom)
             else:
+                        
                 if(self.num_of_cols==16):
                     m = Temp.m16
                 elif(self.num_of_cols==32):
@@ -114,10 +129,41 @@ class KSpace:
                 elif(self.num_of_cols==64):
                     m = Temp.m64
                     
+                for row in range(self.num_of_rows):
+                    for col in range(self.num_of_cols):
+                        if(self.phantom[row, col]==85):
+                            m[row, col, 0] = m[row, col, 0] * np.exp(-self.TR / self.tissue1_T2)
+                            m[row, col, 1] = m[row, col, 1] * np.exp(-self.TR / self.tissue1_T2)
+                            m[row, col, 2] = self.phantom[row, col] - ((self.phantom[row, col] - m[row, col, 2]) * np.exp(-self.TR / self.tissue1_T1))
+                        elif(self.phantom[row, col]==170):
+                            m[row, col, 0] = m[row, col, 0] * np.exp(-self.TR / self.tissue2_T2)
+                            m[row, col, 1] = m[row, col, 1] * np.exp(-self.TR / self.tissue2_T2)
+                            m[row, col, 2] = self.phantom[row, col] - ((self.phantom[row, col] - m[row, col, 2]) * np.exp(-self.TR / self.tissue2_T1))
+                        
+                        elif(self.phantom[row, col]==255):
+                            m[row, col, 0] = m[row, col, 0] * np.exp(-self.TR / self.tissue3_T2)
+                            m[row, col, 1] = m[row, col, 1] * np.exp(-self.TR / self.tissue3_T2)
+                            m[row, col, 2] = self.phantom[row, col] - ((self.phantom[row, col] - m[row, col, 2]) * np.exp(-self.TR / self.tissue3_T1))
+                        
+                        else:
+                            m[row, col, 0] = 0
+                            m[row, col, 1] = 0
+                            m[row, col, 2] = 0
+                            
+                            
             """ comment the next line when you use decay """
-            m = self.magnetization_vector(self.phantom)
-            # m = self.decay_mag(m, self.decay(self.TE, self.TR, self.T1, self.T2))
-            m = self.RF_pulse(m, np.pi/4)
+            # m = self.magnetization_vector(self.phantom)
+            
+            """" OPTIMIZATION """
+            # m[self.phaton == 0] = 0
+            # m[self.phantom == 85] = self.phantom - ((self.phantom - m[..., 2]) * np.exp(-self.TR / self.tissue1_T1))
+            # m[self.phantom == 170] = self.phantom - ((self.phantom - m[..., 2]) * np.exp(-self.TR / self.tissue2_T1))
+            # m[self.phantom == 255] = self.phantom - ((self.phantom - m[..., 2]) * np.exp(-self.TR / self.tissue3_T1))
+            
+            
+                        
+           
+            m = self.RF_pulse(m, (Parameters.RF * np.pi)/180)
             
 
 
@@ -128,28 +174,42 @@ class KSpace:
             _, Gy = np.meshgrid(np.linspace(0, (y * self.dkx) * (self.num_of_cols - 1), self.num_of_cols),
                                 np.linspace(0, (y * self.dky) * (self.num_of_rows - 1), self.num_of_rows))
             
+                      
+            for row in range(self.num_of_rows):
+               for col in range(self.num_of_cols):  
+                   # Phase Encoding 
+                   m_rot[row, col, :] = np.dot(self.Rz(Gy[row, col]), m[row, col, :])
+                   
+            
+                   if(self.phantom[row, col]==85):
+                       m_rot[row, col, 0] = m_rot[row, col, 0] * np.exp(-self.TE / self.tissue1_T2)
+                       m_rot[row, col, 1] = m_rot[row, col, 1] * np.exp(-self.TE / self.tissue1_T2)
+                       m_rot[row, col, 2] = self.phantom[row, col] - ((self.phantom[row, col] - m[row, col, 2]) * np.exp(-self.TE / self.tissue1_T1))
+                   elif(self.phantom[row, col]==170):
+                       m_rot[row, col, 0] = m_rot[row, col, 0] * np.exp(-self.TE / self.tissue2_T2)
+                       m_rot[row, col, 1] = m_rot[row, col, 1] * np.exp(-self.TE / self.tissue2_T2)
+                       m_rot[row, col, 2] = self.phantom[row, col] - ((self.phantom[row, col] - m[row, col, 2]) * np.exp(-self.TE / self.tissue2_T1))
+                   elif(self.phantom[row, col]==255):
+                       m_rot[row, col, 0] = m_rot[row, col, 0] * np.exp(-self.TE / self.tissue3_T2)
+                       m_rot[row, col, 1] = m_rot[row, col, 1] * np.exp(-self.TE / self.tissue3_T2)
+                       m_rot[row, col, 2] = self.phantom[row, col] - ((self.phantom[row, col] - m[row, col, 2]) * np.exp(-self.TE / self.tissue3_T1))
+                   else:
+                       m_rot[row, col, 0] = 0
+                       m_rot[row, col, 1] = 0
+                       m_rot[row, col, 2] = 0
+                       
+
             
             for x in range(self.num_of_cols):
                 
                 Gx, _ = np.meshgrid(np.linspace(0, (x * self.dkx) * (self.num_of_cols - 1), self.num_of_cols),
                                     np.linspace(0, (y * self.dky) * (self.num_of_rows - 1), self.num_of_rows))
     
-                # add both angles
-                # thread
-                # histo bar
-                
-                
-                for row in range(self.num_of_rows):
-                  
-                   for col in range(self.num_of_cols):       
-                       # Phase Encoding 
-                       m_rot[row, col, :] = np.dot(self.Rz(Gy[row, col]), m[row, col, :])
-                       
+
                 # apply decay matrix
                 # m_rot = self.decay_mag(m_rot, self.decay(self.TE, self.TR, self.T1, self.T2))
                         
                 for row in range(self.num_of_rows):
-                   
                     for col in range(self.num_of_cols):       
                         # # Phase Encoding 
                         # m_rot[row, col, :] = np.dot(self.Rz(Gy[row, col]), m[row, col, :])

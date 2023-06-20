@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import threading
 import asyncio
 from kspace import KSpace
+from kspace import Parameters
 from circle_item import CircleItem
 import sequence
 import phantom
@@ -52,8 +53,6 @@ def display_kspace(shared_variables, reconstruct_image, phantom_img, init_kspace
         Stop.counter = 0
         Stop.should_stop = True
         init_kspace()
-        # self.stop_timer()
-        # self.stop_thread()
         shared_variables['actionReconstruct'].setEnabled(True)
         shared_variables['actionStop'].setEnabled(False)
         shared_variables['actionPause'].setEnabled(False)
@@ -107,7 +106,9 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.actionOpen.triggered.connect(self.browse)
         # self.markerCheckBox.stateChanged.connect(self.set_point)
         
-        self.rfDial.valueChanged.connect(self.sequence)
+        self.TR_slider.valueChanged.connect(self.assign_TR_TE)
+        self.TE_slider.valueChanged.connect(self.assign_TR_TE)
+        self.RF_slider.valueChanged.connect(self.sequence)
         
         self.actionPause.setEnabled(False)
         self.actionStop.setEnabled(False)
@@ -124,12 +125,21 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.imageViews = [self.reconstructedView, self.phantomView, self.kspaceView]
         self.hideHisto()
         
+        self.assign_TR_TE()
         self.select_size(self.selected_size)  
         self.sequence()
 
         # Connect the mouseClicked signal to the custom slot
         # self.reconstructedView.mouseClicked.connect(self.handle_mouse_clicked)
     
+    def assign_TR_TE(self):
+        Parameters.TR = self.TR_slider.value()
+        Parameters.TE = self.TE_slider.value()
+        Parameters.RF = self.RF_slider.value()
+        self.TR_label.setText(str(self.TR_slider.value()))
+        self.TE_label.setText(str(self.TE_slider.value()))
+        self.RF_label.setText(str(self.RF_slider.value()))
+        
     def select_size(self, index):
         self.selected_size = index
         if(index == 0):
@@ -171,6 +181,7 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         
     def prespec(self, typo ,img):
         self.unique_img = np.unique(img)
+        print("I'm so unique", self.unique_img)
         self.LUT = np.array([self.unique_img,
     				[ 254 ,102 ,84 ,1],
     			    [ 83  , 100  ,169 ,200]])
@@ -379,8 +390,11 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         pass
 
     def sequence(self):
+        self.RF_label.setText(str(self.RF_slider.value()))
         plt.clf()
-        rf_amp = self.rfDial.value() / 45
+        TR = self.TR_slider.value()
+        TE = self.TE_slider.value()
+        rf_amp = self.RF_slider.value() / 45
         time_step=0.1
         start_time=50
         Gz_amp=0.4
