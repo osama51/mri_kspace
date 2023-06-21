@@ -18,6 +18,8 @@ class Parameters:
     RF = 0
     TI = 0
     duration = 0
+    Angle = 0
+    Width = 0
     
 class Prep_Pulses(Enum):
     NONE = 0    # Done
@@ -162,7 +164,8 @@ class KSpace:
           specific row in k-space will be np.linspace(-np.pi/Ny, np.pi/Ny, Ny), to center 0 angle.
     """
     
-    def build_kspace(self, counter, kspace, prep_pulse=Prep_Pulses.T2, ACQ=ACQ_Seq.SE):
+    def build_kspace(self, counter, kspace, prep_pulse=Prep_Pulses.NONE, ACQ=ACQ_Seq.GRE):
+        print('selected prep', prep_pulse, 'selected_seq', ACQ)
         self.num_of_rows = self.phantom.shape[0]
         self.num_of_cols = self.phantom.shape[1]
         returned_kspace = kspace

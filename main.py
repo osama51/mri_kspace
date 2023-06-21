@@ -15,6 +15,8 @@ import threading
 import asyncio
 from kspace import KSpace
 from kspace import Parameters
+from kspace import Prep_Pulses
+from kspace import ACQ_Seq
 from circle_item import CircleItem
 import sequence
 import phantom
@@ -43,7 +45,7 @@ class ProcessRunnable(QRunnable):
 
 # the display function will be repeated Ny times according to the number of rows
 def display_kspace(shared_variables, reconstruct_image, phantom_img, init_kspace):
-    shared_variables['kspace'] = KSpace.build_kspace(KSpace(shared_variables['phantom_img']), Stop.counter, shared_variables['kspace'])
+    shared_variables['kspace'] = KSpace.build_kspace(KSpace(shared_variables['phantom_img']), Stop.counter, shared_variables['kspace'], shared_variables['selected_prep'], shared_variables['selected_seq'])
     shared_variables['kspace_view'].setImage(np.log(np.abs((shared_variables['kspace']))))
     
     reconstruct_image(shared_variables['reconstructed_view'], shared_variables['kspace'])
@@ -113,6 +115,10 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.duration_slider.valueChanged.connect(self.assign_TR_TE)
         self.RF_slider.valueChanged.connect(self.sequence)
         
+        self.prep_comboBox.currentIndexChanged.connect(self.prep_index_changed)
+        self.seq_comboBox.currentIndexChanged.connect(self.seq_index_changed)
+        self.port_comboBox.currentIndexChanged.connect(self.port_index_changed)
+        
         self.actionPause.setEnabled(False)
         self.actionStop.setEnabled(False)
         print("for some reason I restarted!")
@@ -123,6 +129,9 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.counter = 0
         self.interval = 2000
         self.should_stop = False
+        self.selected_prep = Prep_Pulses.NONE
+        self.selected_seq = ACQ_Seq.GRE
+        self.selected_port = 1
         # self.draw_graph(self.plot)
         
         self.imageViews = [self.reconstructedView, self.phantomView, self.kspaceView]
@@ -153,9 +162,85 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.prep_groupBox.hide()
         
         self.TI_slider.hide()
+        self.TI_label.hide()
+        self.label_TI.hide()
+        
         self.duration_slider.hide()
+        self.duration_label.hide()
+        self.label_duration.hide()
+        
         self.angle_slider.hide()
+        self.angle_label.hide()
+        self.label_angle.hide()
+        
         self.width_slider.hide()
+        self.width_label.hide()
+        self.label_width.hide()
+        
+        
+    def show_IR(self):
+        self.hide_sliders()
+        self.prep_groupBox.show()
+        self.TI_slider.show()
+        self.TI_label.show()
+        self.label_TI.show()
+    
+    def show_T2(self):
+        self.hide_sliders()
+        self.prep_groupBox.show()
+        self.duration_slider.show()
+        self.duration_label.show()
+        self.label_duration.show()
+        
+    def show_Tagging(self):
+        self.hide_sliders()
+        self.prep_groupBox.show()
+        self.angle_slider.show()
+        self.angle_label.show()
+        self.label_angle.show()
+        
+        self.width_slider.show()
+        self.width_label.show()
+        self.label_width.show()
+        
+    def prep_index_changed(self, index):
+        print("yes yes I hear you stop shouting already")
+        if(index==0):
+            self.hide_sliders()
+            self.selected_prep = Prep_Pulses.NONE
+        elif(index==1):
+            self.show_IR()
+            self.selected_prep = Prep_Pulses.IR
+        elif(index==2):
+            self.show_T2()
+            self.selected_prep = Prep_Pulses.T2
+        elif(index==3):
+            self.show_Tagging()
+            self.selected_prep = Prep_Pulses.TAGGING
+            
+    def seq_index_changed(self, index):
+        if(index==ACQ_Seq.GRE):
+            self.selected_seq = ACQ_Seq.GRE
+            pass
+        elif(index==ACQ_Seq.SPOILED_GRE):
+            self.selected_seq = ACQ_Seq.SPOILED_GRE
+            pass
+        elif(index==ACQ_Seq.BALANCED):
+            self.selected_seq = ACQ_Seq.BALANCED
+            pass
+        elif(index==ACQ_Seq.SE):
+            self.selected_seq = ACQ_Seq.SE
+            pass
+        elif(index==ACQ_Seq.TSE):
+            self.selected_seq = ACQ_Seq.TSE
+            pass
+        
+    def port_index_changed(self, index):
+        if(index==0):
+            self.selected_port = 1
+        elif(index==1):
+            self.selected_port = 2
+
         
     def select_size(self, index):
         self.selected_size = index
@@ -322,7 +407,10 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
             'actionReconstruct': self.actionReconstruct,
             'actionStop': self.actionStop,
             'actionPause': self.actionPause,
-            'should_stop': self.should_stop
+            'should_stop': self.should_stop,
+            'selected_prep': self.selected_prep,
+            'selected_seq': self.selected_seq,
+            'selected_port': self.selected_port
             }
 
         
@@ -365,6 +453,7 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         
     def hideHisto(self):
         for view in self.imageViews:
+            view.setLevels(0, 255)
             view.ui.histogram.setFixedWidth(80)
             view.ui.roiBtn.hide()
             view.ui.menuBtn.hide()
