@@ -219,19 +219,19 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
             self.selected_prep = Prep_Pulses.TAGGING
             
     def seq_index_changed(self, index):
-        if(index==ACQ_Seq.GRE):
+        if(index==0):
             self.selected_seq = ACQ_Seq.GRE
             pass
-        elif(index==ACQ_Seq.SPOILED_GRE):
+        elif(index==1): # Not Implemented 
             self.selected_seq = ACQ_Seq.SPOILED_GRE
             pass
-        elif(index==ACQ_Seq.BALANCED):
+        elif(index==2): # Not Implemented 
             self.selected_seq = ACQ_Seq.BALANCED
             pass
-        elif(index==ACQ_Seq.SE):
+        elif(index==3): 
             self.selected_seq = ACQ_Seq.SE
             pass
-        elif(index==ACQ_Seq.TSE):
+        elif(index==4): # Not Implemented 
             self.selected_seq = ACQ_Seq.TSE
             pass
         
