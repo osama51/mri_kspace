@@ -176,14 +176,16 @@ class KSpace:
             m = self.IR_prep_pulse(counter, Parameters.TI)
         elif(prep_pulse==Prep_Pulses.T2):
             m = self.T2_prep_pulse(counter, Parameters.duration)
+        elif(prep_pulse==Prep_Pulses.TAGGING):
+            m = self.Tagging_prep_pulse(counter, Parameters.Angle)
         
         
         if(ACQ==ACQ_Seq.GRE):   # GRE
             returned_kspace = self.basic_GRE(counter, kspace, m)
-        elif(ACQ==1): # 
+        elif(ACQ==ACQ_Seq.SPOILED_GRE): # 
             pass
-        elif(ACQ==2): #
-            pass
+        elif(ACQ==ACQ_Seq.BALANCED): #
+            return_kspace = self.balanced_ssfp(counter, kspace, m)
         elif(ACQ==ACQ_Seq.SE): # SE_Seq
             returned_kspace = self.SE_Seq(counter, kspace, m)
         return returned_kspace
@@ -302,32 +304,18 @@ class KSpace:
         # self.k_space = self.k_space / np.max(np.abs(self.k_space)) * 255
         return kspace
     
-    # not implemented yet
-    def balnced_ssfp(self, counter, kspace):
+    
+    # needs testing (supposedly shorter TR?)
+    def balanced_ssfp(self, counter, kspace, m_prep):
         # y and x are iterators in K-Space
         for y in range(counter, counter + 1):
-            if(counter == 0):
-                m = self.magnetization_vector(self.phantom)
-            else:
-                if(self.num_of_cols==16):
-                    m = Temp.m16
-                elif(self.num_of_cols==32):
-                    m = Temp.m32
-                elif(self.num_of_cols==64):
-                    m = Temp.m64
-                                    
-                m = self.decay_power(m, self.TR)
-                            
-                                       
+            
+            m = m_prep
             m = self.RF_pulse(m, (Parameters.RF * np.pi)/180)
             
-            # if(ACQ==3):
-            #     m = self.decay_power(m, self.TE/2)
-            #     m = self.RF_pulse(m, np.pi)
-            
-            # m = self.RF_pulse_rotation(np.pi/2)
             m_rot = m.copy()
             m_rotx = m.copy()
+            m_balanced = m.copy()
         
             _, Gy = np.meshgrid(np.linspace(0, (y * self.dkx) * (self.num_of_cols - 1), self.num_of_cols),
                                 np.linspace(0, (y * self.dky) * (self.num_of_rows - 1), self.num_of_rows))
@@ -343,19 +331,25 @@ class KSpace:
                 Gx, _ = np.meshgrid(np.linspace(0, (x * self.dkx) * (self.num_of_cols - 1), self.num_of_cols),
                                     np.linspace(0, (y * self.dky) * (self.num_of_rows - 1), self.num_of_rows))
     
-
+                
                 for row in range(self.num_of_rows):
                     for col in range(self.num_of_cols):       
 
                         # Frequency Encoding
                         m_rotx[row, col, :] = np.dot(self.Rz(Gx[row, col]), m_rot[row, col, :])
+                        
+                        # Reversing applied Gx
+                        m_balanced[row, col, :] = np.dot(self.Rz(2*np.pi - Gx[row, col]), m_rotx[row, col, :])
+                        
+                        # Reversing applied Gy
+                        m_balanced[row, col, :] = np.dot(self.Rz(2*np.pi - Gy[row, col]), m_balanced[row, col, :])
                     
                 if(self.num_of_cols==16):
-                    Temp.m16 = m_rotx
+                    Temp.m16 = m_balanced
                 elif(self.num_of_cols==32):
-                    Temp.m32 = m_rotx
+                    Temp.m32 = m_balanced
                 elif(self.num_of_cols==64):
-                    Temp.m64 = m_rotx
+                    Temp.m64 = m_balanced
                 
                 x_sum = np.sum(m_rotx[..., 0])
                 y_sum = np.sum(m_rotx[..., 1])
@@ -422,6 +416,46 @@ class KSpace:
         m = self.RF_pulse(m, np.pi/2)
         m = self.decay_power(m, duration)
         m = self.RF_pulse(m, 3*np.pi/2)
+        return m
+    
+    def Tagging_prep_pulse(self, counter, angle):
+        duration = 2 # ms
+        if(counter == 0):
+            m = self.magnetization_vector(self.phantom)
+        else:
+            if(self.num_of_cols==16):
+                m = Temp.m16
+            elif(self.num_of_cols==32):
+                m = Temp.m32
+            elif(self.num_of_cols==64):
+                m = Temp.m64
+                                
+            m = self.decay_power(m, self.TR-duration)
+
+
+        Gx, Gy = np.meshgrid(np.linspace(0,  self.dkx * (self.num_of_cols - 1), self.num_of_cols),
+                            np.linspace(0, self.dky * (self.num_of_rows - 1), self.num_of_rows))
+        
+        # _, Gy = np.meshgrid(np.linspace(0,  self.dkx * (self.num_of_cols - 1), self.num_of_cols),
+        #                     np.linspace(0, self.dky * (self.num_of_rows - 1), self.num_of_rows))
+        
+        if(angle == 0 or angle == 45):
+            m = self.RF_pulse(m, np.pi/2)
+            for row in range(self.num_of_rows):
+                    for col in range(self.num_of_cols):    
+                        m[row, col, :] = np.dot(self.Rz(Gx[row, col]), m[row, col, :])
+                        
+            m = self.decay_power(m, duration)
+            m = self.RF_pulse(m, 3*np.pi/2)
+            
+        if(angle == 90 or angle == 45):
+            m = self.RF_pulse(m, np.pi/2)
+            for row in range(self.num_of_rows):
+                    for col in range(self.num_of_cols):    
+                        m[row, col, :] = np.dot(self.Rz(Gy[row, col]), m[row, col, :])
+                        
+            m = self.decay_power(m, duration)
+            m = self.RF_pulse(m, 3*np.pi/2)
         return m
 
     

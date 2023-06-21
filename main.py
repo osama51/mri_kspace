@@ -45,10 +45,13 @@ class ProcessRunnable(QRunnable):
 
 # the display function will be repeated Ny times according to the number of rows
 def display_kspace(shared_variables, reconstruct_image, phantom_img, init_kspace):
-    shared_variables['kspace'] = KSpace.build_kspace(KSpace(shared_variables['phantom_img']), Stop.counter, shared_variables['kspace'], shared_variables['selected_prep'], shared_variables['selected_seq'])
-    shared_variables['kspace_view'].setImage(np.log(np.abs((shared_variables['kspace']))))
+    shared_variables['kspace'] = KSpace.build_kspace(KSpace(shared_variables['phantom_img']), 
+                                                     Stop.counter, shared_variables['kspace'], 
+                                                     shared_variables['selected_prep'], 
+                                                     shared_variables['selected_seq'])
+    shared_variables['kspaceViews'][shared_variables['selected_port']].setImage(np.log(np.abs((shared_variables['kspace']))))
     
-    reconstruct_image(shared_variables['reconstructed_view'], shared_variables['kspace'])
+    reconstruct_image(shared_variables['phantomViews'][shared_variables['selected_port']], shared_variables['kspace'])
     Stop.counter += 1
     print("counter", Stop.counter)
     if(Stop.counter >= shared_variables['dimen_x']): 
@@ -100,9 +103,11 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.selected_size = 0
         self.sizeComboBox.currentIndexChanged.connect(self.select_size)
         
-        self.reconstDefaultSize.clicked.connect(lambda: self.reconstructedView.autoRange())
-        self.phantomDefaultSize.clicked.connect(lambda: [self.phantomView.autoRange(), self.kspaceView.autoRange()])
-        self.actionReconstruct.triggered.connect(lambda: self.start_kspace(self.kspaceView, self.reconstructedView))
+        self.reconstDefaultSize.clicked.connect(self.autoRange_reconstructedViews)
+        self.phantomDefaultSize.clicked.connect(lambda: [self.phantomView.autoRange(), 
+                                                         self.kspaceView.autoRange()])
+        self.actionReconstruct.triggered.connect(lambda: self.start_kspace(self.kspaceViews[self.selected_port], 
+                                                                           self.phantomViews[self.selected_port]))
         self.actionStop.triggered.connect(self.stop_timer)
         self.actionPause.triggered.connect(self.pause_timer)
         self.actionOpen.triggered.connect(self.browse)
@@ -113,6 +118,8 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.RF_slider.valueChanged.connect(self.assign_TR_TE)
         self.TI_slider.valueChanged.connect(self.assign_TR_TE)
         self.duration_slider.valueChanged.connect(self.assign_TR_TE)
+        self.angle_slider.valueChanged.connect(self.assign_TR_TE)
+        self.width_slider.valueChanged.connect(self.assign_TR_TE)
         self.RF_slider.valueChanged.connect(self.sequence)
         
         self.prep_comboBox.currentIndexChanged.connect(self.prep_index_changed)
@@ -131,15 +138,18 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.should_stop = False
         self.selected_prep = Prep_Pulses.NONE
         self.selected_seq = ACQ_Seq.GRE
-        self.selected_port = 1
+        self.selected_port = 0
         # self.draw_graph(self.plot)
         
-        self.imageViews = [self.reconstructedView, self.phantomView, self.kspaceView]
+        self.imageViews = [self.reconstructedView, self.reconstructedView_2, self.phantomView, self.kspaceView, self.kspaceView_2]
         self.hideHisto()
+        
+        self.kspaceViews = [self.kspaceView, self.kspaceView_2]
+        self.phantomViews = [self.reconstructedView, self.reconstructedView_2]
         
         self.assign_TR_TE()
         self.hide_sliders()
-        self.select_size(self.selected_size)  
+        self.select_size(self.selected_size)
         self.sequence()
 
         # Connect the mouseClicked signal to the custom slot
@@ -151,12 +161,16 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         Parameters.RF = self.RF_slider.value()
         Parameters.TI = self.TI_slider.value()
         Parameters.duration = self.duration_slider.value()
+        Parameters.Angle = self.angle_slider.value() * 45
+        Parameters.Width = self.width_slider.value()
         
         self.TR_label.setText(str(self.TR_slider.value()))
         self.TE_label.setText(str(self.TE_slider.value()))
         self.RF_label.setText(str(self.RF_slider.value()))
         self.TI_label.setText(str(self.TI_slider.value()))
         self.duration_label.setText(str(self.duration_slider.value()))
+        self.angle_label.setText(str(self.angle_slider.value() * 45))
+        self.width_label.setText(str(self.width_slider.value()))
         
     def hide_sliders(self):
         self.prep_groupBox.hide()
@@ -237,11 +251,17 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         
     def port_index_changed(self, index):
         if(index==0):
-            self.selected_port = 1
+            self.selected_port = 0
         elif(index==1):
-            self.selected_port = 2
+            self.selected_port = 1
 
         
+    def autoRange_reconstructedViews(self):
+        for i in self.phantomViews:
+            i.autoRange()
+        for i in self.kspaceViews:
+            i.autoRange()
+            
     def select_size(self, index):
         self.selected_size = index
         if(index == 0):
@@ -285,7 +305,7 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.unique_img = np.unique(img)
         print("I'm so unique", self.unique_img)
         self.LUT = np.array([self.unique_img,
-    				[ 254 ,102 ,84 ,1],
+    				[ 0 ,102 ,84 ,1],
     			    [ 83  , 100  ,169 ,200]])
         edited_img = img.copy()
         if typo == 'PD':
@@ -410,7 +430,9 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
             'should_stop': self.should_stop,
             'selected_prep': self.selected_prep,
             'selected_seq': self.selected_seq,
-            'selected_port': self.selected_port
+            'selected_port': self.selected_port,
+            'kspaceViews': self.kspaceViews,
+            'phantomViews': self.phantomViews
             }
 
         
@@ -454,7 +476,7 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
     def hideHisto(self):
         for view in self.imageViews:
             view.setLevels(0, 255)
-            view.ui.histogram.setFixedWidth(80)
+            view.ui.histogram.setFixedWidth(60)
             view.ui.roiBtn.hide()
             view.ui.menuBtn.hide()
 
