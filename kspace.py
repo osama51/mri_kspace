@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image 
 import matplotlib.pyplot as plt
 import scipy.fftpack as spfft
+from enum import Enum
 
 class Temp: 
     m16 = np.ndarray((16,16,3))
@@ -16,7 +17,22 @@ class Parameters:
     TR = 0
     RF = 0
     
+class Prep_Pulses(Enum):
+    NONE = 0
+    IR = 1
+    T2 = 2
+    TAGGING = 3
     
+class ACQ(Enum):
+    GRE = 0
+    SPOILED_GRE = 1
+    BALANCED = 2
+    SE = 3
+    TSE = 4
+    
+    
+    
+
 class KSpace:
     def __init__(self, phantom):
         super(KSpace,self).__init__()
@@ -47,15 +63,26 @@ class KSpace:
         self.TR = Parameters.TR
         self.TE = Parameters.TE
         
-        self.tissue1_T2 = 70
+        # self.tissue1_T2 = 70
+        # self.tissue2_T2 = 80
+        # # self.tissue3_T2 = 300
+        # self.tissue3_T2 = 110
+        
+        # self.tissue1_T1 = 500
+        # self.tissue2_T1 = 800
+        # # self.tissue3_T1 = 2500
+        # self.tissue3_T1 = 1200
+        
+        self.tissue1_T2 = 100
         self.tissue2_T2 = 80
         # self.tissue3_T2 = 300
-        self.tissue3_T2 = 110
+        self.tissue3_T2 = 20
         
-        self.tissue1_T1 = 500
-        self.tissue2_T1 = 800
+        self.tissue1_T1 = 250
+        self.tissue2_T1 = 350
         # self.tissue3_T1 = 2500
-        self.tissue3_T1 = 1200
+        self.tissue3_T1 = 1800
+        
         
         # self.m = self.magnetization_vector(self.phantom)
     
@@ -82,7 +109,29 @@ class KSpace:
         m = m_decayed.reshape((self.num_of_rows, self.num_of_cols, 3))
         return m
 
-    
+    def decay_power(self, m, t):
+        for row in range(self.num_of_rows):
+            for col in range(self.num_of_cols):
+                if(self.phantom[row, col]==85):
+                    m[row, col, 0] = m[row, col, 0] * np.exp(-t / self.tissue1_T2)
+                    m[row, col, 1] = m[row, col, 1] * np.exp(-t / self.tissue1_T2)
+                    m[row, col, 2] = self.phantom[row, col] - ((self.phantom[row, col] - m[row, col, 2]) * np.exp(-t / self.tissue1_T1))
+                elif(self.phantom[row, col]==170):
+                    m[row, col, 0] = m[row, col, 0] * np.exp(-t / self.tissue2_T2)
+                    m[row, col, 1] = m[row, col, 1] * np.exp(-t / self.tissue2_T2)
+                    m[row, col, 2] = self.phantom[row, col] - ((self.phantom[row, col] - m[row, col, 2]) * np.exp(-t / self.tissue2_T1))
+                
+                elif(self.phantom[row, col]==255):
+                    m[row, col, 0] = m[row, col, 0] * np.exp(-t / self.tissue3_T2)
+                    m[row, col, 1] = m[row, col, 1] * np.exp(-t / self.tissue3_T2)
+                    m[row, col, 2] = self.phantom[row, col] - ((self.phantom[row, col] - m[row, col, 2]) * np.exp(-t / self.tissue3_T1))
+                
+                else:
+                    m[row, col, 0] = 0
+                    m[row, col, 1] = 0
+                    m[row, col, 2] = 0
+        return m
+
     def RF_pulse(self, m, theta):
         m_reshaped = m.reshape((-1, 3))
         m_rotated_rf = np.dot(self.Rx(theta), m_reshaped.T).T
@@ -110,45 +159,35 @@ class KSpace:
           divided by Ny ((2 * pi / Ny) / Ny), the ranges for this specific gradient for this 
           specific row in k-space will be np.linspace(-np.pi/Ny, np.pi/Ny, Ny), to center 0 angle.
     """
-        
     
-    def build_kspace(self, counter, kspace):
+    def build_kspace(self, counter, kspace, prep_pulse=0, ACQ=3):
         self.num_of_rows = self.phantom.shape[0]
         self.num_of_cols = self.phantom.shape[1]
-
+        returned_kspace = kspace
+        if(ACQ==0):   # GRE
+            returned_kspace = self.basic_GRE(counter, kspace)
+        elif(ACQ==1): # 
+            pass
+        elif(ACQ==2): #
+            pass
+        elif(ACQ==3): # SE_Seq
+            returned_kspace = self.SE_Seq(counter, kspace)
+        return returned_kspace
+    
+    def basic_GRE(self, counter, kspace):
         # y and x are iterators in K-Space
         for y in range(counter, counter + 1):
             if(counter == 0):
                 m = self.magnetization_vector(self.phantom)
             else:
-                        
                 if(self.num_of_cols==16):
                     m = Temp.m16
                 elif(self.num_of_cols==32):
                     m = Temp.m32
                 elif(self.num_of_cols==64):
                     m = Temp.m64
-                    
-                for row in range(self.num_of_rows):
-                    for col in range(self.num_of_cols):
-                        if(self.phantom[row, col]==85):
-                            m[row, col, 0] = m[row, col, 0] * np.exp(-self.TR / self.tissue1_T2)
-                            m[row, col, 1] = m[row, col, 1] * np.exp(-self.TR / self.tissue1_T2)
-                            m[row, col, 2] = self.phantom[row, col] - ((self.phantom[row, col] - m[row, col, 2]) * np.exp(-self.TR / self.tissue1_T1))
-                        elif(self.phantom[row, col]==170):
-                            m[row, col, 0] = m[row, col, 0] * np.exp(-self.TR / self.tissue2_T2)
-                            m[row, col, 1] = m[row, col, 1] * np.exp(-self.TR / self.tissue2_T2)
-                            m[row, col, 2] = self.phantom[row, col] - ((self.phantom[row, col] - m[row, col, 2]) * np.exp(-self.TR / self.tissue2_T1))
-                        
-                        elif(self.phantom[row, col]==255):
-                            m[row, col, 0] = m[row, col, 0] * np.exp(-self.TR / self.tissue3_T2)
-                            m[row, col, 1] = m[row, col, 1] * np.exp(-self.TR / self.tissue3_T2)
-                            m[row, col, 2] = self.phantom[row, col] - ((self.phantom[row, col] - m[row, col, 2]) * np.exp(-self.TR / self.tissue3_T1))
-                        
-                        else:
-                            m[row, col, 0] = 0
-                            m[row, col, 1] = 0
-                            m[row, col, 2] = 0
+                                    
+                m = self.decay_power(m, self.TR)
                             
                             
             """ comment the next line when you use decay """
@@ -160,13 +199,13 @@ class KSpace:
             # m[self.phantom == 170] = self.phantom - ((self.phantom - m[..., 2]) * np.exp(-self.TR / self.tissue2_T1))
             # m[self.phantom == 255] = self.phantom - ((self.phantom - m[..., 2]) * np.exp(-self.TR / self.tissue3_T1))
             
-            
-                        
            
             m = self.RF_pulse(m, (Parameters.RF * np.pi)/180)
             
-
-
+            # if(ACQ==3):
+            #     m = self.decay_power(m, self.TE/2)
+            #     m = self.RF_pulse(m, np.pi)
+            
             # m = self.RF_pulse_rotation(np.pi/2)
             m_rot = m.copy()
             m_rotx = m.copy()
@@ -174,45 +213,20 @@ class KSpace:
             _, Gy = np.meshgrid(np.linspace(0, (y * self.dkx) * (self.num_of_cols - 1), self.num_of_cols),
                                 np.linspace(0, (y * self.dky) * (self.num_of_rows - 1), self.num_of_rows))
             
-                      
             for row in range(self.num_of_rows):
                for col in range(self.num_of_cols):  
                    # Phase Encoding 
                    m_rot[row, col, :] = np.dot(self.Rz(Gy[row, col]), m[row, col, :])
-                   
-            
-                   if(self.phantom[row, col]==85):
-                       m_rot[row, col, 0] = m_rot[row, col, 0] * np.exp(-self.TE / self.tissue1_T2)
-                       m_rot[row, col, 1] = m_rot[row, col, 1] * np.exp(-self.TE / self.tissue1_T2)
-                       m_rot[row, col, 2] = self.phantom[row, col] - ((self.phantom[row, col] - m[row, col, 2]) * np.exp(-self.TE / self.tissue1_T1))
-                   elif(self.phantom[row, col]==170):
-                       m_rot[row, col, 0] = m_rot[row, col, 0] * np.exp(-self.TE / self.tissue2_T2)
-                       m_rot[row, col, 1] = m_rot[row, col, 1] * np.exp(-self.TE / self.tissue2_T2)
-                       m_rot[row, col, 2] = self.phantom[row, col] - ((self.phantom[row, col] - m[row, col, 2]) * np.exp(-self.TE / self.tissue2_T1))
-                   elif(self.phantom[row, col]==255):
-                       m_rot[row, col, 0] = m_rot[row, col, 0] * np.exp(-self.TE / self.tissue3_T2)
-                       m_rot[row, col, 1] = m_rot[row, col, 1] * np.exp(-self.TE / self.tissue3_T2)
-                       m_rot[row, col, 2] = self.phantom[row, col] - ((self.phantom[row, col] - m[row, col, 2]) * np.exp(-self.TE / self.tissue3_T1))
-                   else:
-                       m_rot[row, col, 0] = 0
-                       m_rot[row, col, 1] = 0
-                       m_rot[row, col, 2] = 0
-                       
 
-            
+            m_rot = self.decay_power(m_rot, self.TE)
             for x in range(self.num_of_cols):
                 
                 Gx, _ = np.meshgrid(np.linspace(0, (x * self.dkx) * (self.num_of_cols - 1), self.num_of_cols),
                                     np.linspace(0, (y * self.dky) * (self.num_of_rows - 1), self.num_of_rows))
     
 
-                # apply decay matrix
-                # m_rot = self.decay_mag(m_rot, self.decay(self.TE, self.TR, self.T1, self.T2))
-                        
                 for row in range(self.num_of_rows):
                     for col in range(self.num_of_cols):       
-                        # # Phase Encoding 
-                        # m_rot[row, col, :] = np.dot(self.Rz(Gy[row, col]), m[row, col, :])
 
                         # Frequency Encoding
                         m_rotx[row, col, :] = np.dot(self.Rz(Gx[row, col]), m_rot[row, col, :])
@@ -224,34 +238,141 @@ class KSpace:
                 elif(self.num_of_cols==64):
                     Temp.m64 = m_rotx
                 
-                # Temp.temp_counter += 1
-                # print("temp_counter", Temp.temp_counter)
                 x_sum = np.sum(m_rotx[..., 0])
                 y_sum = np.sum(m_rotx[..., 1])
                 kspace[y, x] = complex(y_sum, x_sum)
                 # self.pp.pprint(Gy)
+    
+        # image = np.abs((np.fft.ifft2(self.k_space)))
+        # self.k_space = self.k_space / np.max(np.abs(self.k_space)) * 255
+        return kspace
+
+    def SE_Seq(self, counter, kspace):
+        # y and x are iterators in K-Space
+        for y in range(counter, counter + 1):
+            if(counter == 0):
+                m = self.magnetization_vector(self.phantom)
+            else:
+                if(self.num_of_cols==16):
+                    m = Temp.m16
+                elif(self.num_of_cols==32):
+                    m = Temp.m32
+                elif(self.num_of_cols==64):
+                    m = Temp.m64
+                                    
+                m = self.decay_power(m, self.TR)
+
+           
+            m = self.RF_pulse(m, (Parameters.RF * np.pi)/180)
+            
+
+            m = self.decay_power(m, self.TE/2)
+            m = self.RF_pulse(m, np.pi)
+
+            m_rot = m.copy()
+            m_rotx = m.copy()
+        
+            _, Gy = np.meshgrid(np.linspace(0, (y * self.dkx) * (self.num_of_cols - 1), self.num_of_cols),
+                                np.linspace(0, (y * self.dky) * (self.num_of_rows - 1), self.num_of_rows))
+            
+            for row in range(self.num_of_rows):
+               for col in range(self.num_of_cols):  
+                   # Phase Encoding 
+                   m_rot[row, col, :] = np.dot(self.Rz(Gy[row, col]), m[row, col, :])
+
+            m_rot = self.decay_power(m_rot, self.TE/2)
+            for x in range(self.num_of_cols):
                 
-                # image = np.abs((np.fft.ifft2(self.k_space)))
+                Gx, _ = np.meshgrid(np.linspace(0, (x * self.dkx) * (self.num_of_cols - 1), self.num_of_cols),
+                                    np.linspace(0, (y * self.dky) * (self.num_of_rows - 1), self.num_of_rows))
+    
+
+                for row in range(self.num_of_rows):
+                    for col in range(self.num_of_cols):       
+
+                        # Frequency Encoding
+                        m_rotx[row, col, :] = np.dot(self.Rz(Gx[row, col]), m_rot[row, col, :])
+                    
+                if(self.num_of_cols==16):
+                    Temp.m16 = m_rotx
+                elif(self.num_of_cols==32):
+                    Temp.m32 = m_rotx
+                elif(self.num_of_cols==64):
+                    Temp.m64 = m_rotx
                 
+                x_sum = np.sum(m_rotx[..., 0])
+                y_sum = np.sum(m_rotx[..., 1])
+                kspace[y, x] = complex(y_sum, x_sum)
+                # self.pp.pprint(Gy)
     
         # image = np.abs((np.fft.ifft2(self.k_space)))
         # self.k_space = self.k_space / np.max(np.abs(self.k_space)) * 255
         return kspace
     
+    def balnced_ssfp(self, counter, kspace):
+        # y and x are iterators in K-Space
+        for y in range(counter, counter + 1):
+            if(counter == 0):
+                m = self.magnetization_vector(self.phantom)
+            else:
+                if(self.num_of_cols==16):
+                    m = Temp.m16
+                elif(self.num_of_cols==32):
+                    m = Temp.m32
+                elif(self.num_of_cols==64):
+                    m = Temp.m64
+                                    
+                m = self.decay_power(m, self.TR)
+                            
+                                       
+            m = self.RF_pulse(m, (Parameters.RF * np.pi)/180)
+            
+            # if(ACQ==3):
+            #     m = self.decay_power(m, self.TE/2)
+            #     m = self.RF_pulse(m, np.pi)
+            
+            # m = self.RF_pulse_rotation(np.pi/2)
+            m_rot = m.copy()
+            m_rotx = m.copy()
+        
+            _, Gy = np.meshgrid(np.linspace(0, (y * self.dkx) * (self.num_of_cols - 1), self.num_of_cols),
+                                np.linspace(0, (y * self.dky) * (self.num_of_rows - 1), self.num_of_rows))
+            
+            for row in range(self.num_of_rows):
+               for col in range(self.num_of_cols):  
+                   # Phase Encoding 
+                   m_rot[row, col, :] = np.dot(self.Rz(Gy[row, col]), m[row, col, :])
+
+            m_rot = self.decay_power(m_rot, self.TE)
+            for x in range(self.num_of_cols):
+                
+                Gx, _ = np.meshgrid(np.linspace(0, (x * self.dkx) * (self.num_of_cols - 1), self.num_of_cols),
+                                    np.linspace(0, (y * self.dky) * (self.num_of_rows - 1), self.num_of_rows))
     
-    # # Display image
-    # fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(10, 5)) # , figsize=(10, 5)
-    # ax1.set_title('Phantom')
-    # ax1.imshow(self.phantom, cmap='gray')
-    # ax2.imshow(image, cmap='gray')
-    # ax2.set_title('Reconstructed')
-    # ax3.imshow(np.log(np.abs((self.k_space))), cmap='gray')
-    # ax3.set_title('My Poor K-Space')
-    # ax4.imshow(np.log(np.abs((self.real_kspace))), cmap='gray')
-    # ax4.set_title('Real K-Space')
-    # plt.show()
+
+                for row in range(self.num_of_rows):
+                    for col in range(self.num_of_cols):       
+
+                        # Frequency Encoding
+                        m_rotx[row, col, :] = np.dot(self.Rz(Gx[row, col]), m_rot[row, col, :])
+                    
+                if(self.num_of_cols==16):
+                    Temp.m16 = m_rotx
+                elif(self.num_of_cols==32):
+                    Temp.m32 = m_rotx
+                elif(self.num_of_cols==64):
+                    Temp.m64 = m_rotx
+                
+                x_sum = np.sum(m_rotx[..., 0])
+                y_sum = np.sum(m_rotx[..., 1])
+                kspace[y, x] = complex(y_sum, x_sum)
+                # self.pp.pprint(Gy)
     
-    
+        # image = np.abs((np.fft.ifft2(self.k_space)))
+        # self.k_space = self.k_space / np.max(np.abs(self.k_space)) * 255
+        return kspace
+        
+        
 # phantom =cv2.imread("phantoms/brain16.png",0)
 # phantom = np.array(phantom)
 # m1 = KSpace(phantom).RF_pulse()

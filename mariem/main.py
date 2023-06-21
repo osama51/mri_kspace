@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import threading
 import asyncio
 from kspace import KSpace
-from kspace import Parameters
 from circle_item import CircleItem
 import sequence
 import phantom
@@ -27,7 +26,7 @@ class Stop:
     counter = 0
     restart = False
     
-    
+#multithreading functions
 class ProcessRunnable(QRunnable):
     def __init__(self, target, args):
         QRunnable.__init__(self)
@@ -53,10 +52,12 @@ def display_kspace(shared_variables, reconstruct_image, phantom_img, init_kspace
         Stop.counter = 0
         Stop.should_stop = True
         init_kspace()
+        # self.stop_timer()
+        # self.stop_thread()
         shared_variables['actionReconstruct'].setEnabled(True)
         shared_variables['actionStop'].setEnabled(False)
         shared_variables['actionPause'].setEnabled(False)
-        print("I'm done, do you witness the greatness?\n")
+        print("I'm done, do you witness the greatness?\nYES! WHAT A BRAIN!")
         
     print("should stop: ", Stop.should_stop)
     while not Stop.should_stop:
@@ -71,7 +72,7 @@ def display_kspace(shared_variables, reconstruct_image, phantom_img, init_kspace
     # if(Stop.should_stop): Stop.should_stop = False
 
 
-FORM_CLASS,_ = loadUiType(path.join(path.dirname(__file__), "gui_mri.ui"))
+FORM_CLASS,_ = loadUiType(path.join(path.dirname(__file__), "gui_edit.ui"))
 class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
 
     def __init__(self):
@@ -105,12 +106,18 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.actionPause.triggered.connect(self.pause_timer)
         self.actionOpen.triggered.connect(self.browse)
         # self.markerCheckBox.stateChanged.connect(self.set_point)
-        
-        self.TR_slider.valueChanged.connect(self.assign_TR_TE)
-        self.TE_slider.valueChanged.connect(self.assign_TR_TE)
-        self.RF_slider.valueChanged.connect(self.assign_TR_TE)
-        self.RF_slider.valueChanged.connect(self.sequence)
-        
+        self.T2_Parameters.hide()
+        self.Tagging_Parameters.hide()
+        self.INV_Parameters.hide()
+        self.SSFP_Parameters.hide()
+        self.GRE_Parameters.hide()
+        self.SE_Parameters.hide()
+        self.TSE_Parameters.hide()
+        self.verticalSlider_4.valueChanged.connect(self.sequence)
+        self.INV_Prep.toggled.connect(self.hidebox1)
+        self.T2_Prep.toggled.connect(self.hidebox2  )
+        self.Tagging_Prep.toggled.connect(self.hidebox3)
+        self.none.toggled.connect(self.hidebox4)
         self.actionPause.setEnabled(False)
         self.actionStop.setEnabled(False)
         print("for some reason I restarted!")
@@ -126,21 +133,12 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.imageViews = [self.reconstructedView, self.phantomView, self.kspaceView]
         self.hideHisto()
         
-        self.assign_TR_TE()
         self.select_size(self.selected_size)  
         self.sequence()
-
+        
         # Connect the mouseClicked signal to the custom slot
         # self.reconstructedView.mouseClicked.connect(self.handle_mouse_clicked)
     
-    def assign_TR_TE(self):
-        Parameters.TR = self.TR_slider.value()
-        Parameters.TE = self.TE_slider.value()
-        Parameters.RF = self.RF_slider.value()
-        self.TR_label.setText(str(self.TR_slider.value()))
-        self.TE_label.setText(str(self.TE_slider.value()))
-        self.RF_label.setText(str(self.RF_slider.value()))
-        
     def select_size(self, index):
         self.selected_size = index
         if(index == 0):
@@ -182,7 +180,6 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         
     def prespec(self, typo ,img):
         self.unique_img = np.unique(img)
-        print("I'm so unique", self.unique_img)
         self.LUT = np.array([self.unique_img,
     				[ 254 ,102 ,84 ,1],
     			    [ 83  , 100  ,169 ,200]])
@@ -209,40 +206,12 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         
         self.dimen_x = self.phantom_img.shape[0]
         self.dimen_y = self.phantom_img.shape[1]
-        # print(self.dimen_x)
-        
-        # self.frame = np.random.rand(120, 100)
-        # img = pg.ImageItem(self.weighted_img)
-        
-        # Interpret image data as row-major instead of col-major
-        # pg.setConfigOptions(imageAxisOrder='row-major')
-        # pg.mkQApp()
-        
-        # img = pg.ImageItem()
-
-        # spec_plot2.addItem(img) # PlotWidget with ImageItem - WORKING BUT AS AN ITEM
         
         phantomView.setImage(self.weighted_img)        # ImgaeView
-        # spec_plot2.scene().sigMouseClicked.connect(self.mouseClickEvent)
-
-        #  # self.circle_item = CircleItem(pos=(0, 0), radius=0.5, brush=QBrush(QColor(100, 50, 50, 0)))
-        # self.circle_item = pg.ScatterPlotItem(size=10, symbol='o', brush='w')
-        
-        # # Connect the mousePressEvent signal to the custom slot
-        # self.phantomView.getView().mousePressEvent = self.handle_mouse_clicked
-        
-        # self.phantomView.sigMouseClicked.MouseClickEvent(self.mouseMovedEvent, double=False)
+    
 
     def handle_mouse_clicked(self, event):
-        # print('I\'M PRESSED')
         self.label_value.clear()
-        
-        
-        # self.phantomView.getView().removeItem(self.circle_item)
-        
-        # # Create a CircleItem to display the mouse click position
-        # self.circle_item = CircleItem(pos=(0, 0), radius=0.5, brush=QBrush(QColor(100, 50, 50, 0)))
-        # self.phantomView.getView().addItem(self.circle_item)
 
         # Get the mouse click position in image coordinates
         pos = self.reconstructedView.getView().mapSceneToView(event.pos())
@@ -258,14 +227,7 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
             print(pd_value, t1_value, t2_value)
             self.label_value.setText("({}, {}) = PD{:0} T1:{:0} T2:{:0}".format(self.y_i, self.x_i, pd_value, t1_value, t2_value))
             return
-        
-        # # Update the CircleItem position and show it
-        # self.circle_item.setPos(pos)
-        # self.circle_item.setBrush(QBrush(QColor(255, 255, 255, 100)))
-        
-        # # Update the ScatterPlotItem position and show it
-        # self.circle_item.setData(pos=[(pos.x(), pos.y())], brush=QtGui.QColor(255, 255, 255, 0))
-
+    
     def init_kspace(self):
         print("fshhhhhh. kspace flushed!")
         self.k_space = np.ones((self.num_of_rows, self.num_of_cols), dtype=np.complex64)
@@ -346,7 +308,26 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         # Connect the mousePressEvent signal to the custom slot
         self.reconstructedView.getView().mousePressEvent = self.handle_mouse_clicked
        
+    def hidebox1 (self):
+        self.INV_Parameters.show()
+        self.T2_Parameters.hide()
+        self.Tagging_Parameters.hide()
         
+
+    def hidebox2 (self):
+        self.INV_Parameters.hide()
+        self.T2_Parameters.show()
+        self.Tagging_Parameters.hide()
+
+    def hidebox3 (self):
+        self.INV_Parameters.hide()
+        self.T2_Parameters.hide()
+        self.Tagging_Parameters.show()
+    
+    def hidebox4(self):
+        self.INV_Parameters.hide()
+        self.T2_Parameters.hide()
+        self.Tagging_Parameters.hide()
     def hideHisto(self):
         for view in self.imageViews:
             view.ui.histogram.setFixedWidth(80)
@@ -391,11 +372,8 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         pass
 
     def sequence(self):
-        self.RF_label.setText(str(self.RF_slider.value()))
         plt.clf()
-        TR = self.TR_slider.value()
-        TE = self.TE_slider.value()
-        rf_amp = self.RF_slider.value() / 45
+        rf_amp = self.verticalSlider_4.value() / 45
         time_step=0.1
         start_time=50
         Gz_amp=0.4
@@ -431,15 +409,15 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
 
         Gph_zeros=zeros.copy()
         for row in range(1,no_of_rows+1):
-        	Gph_amp= ((Gph_max_amp/no_of_rows)*row)
-        	Gph_zeros[fin_Gz_time_pos:fin_Gph_time]=Gph_amp
-        	Gph_zeros_neg = - Gph_zeros
-        	Gph_zeros = Gph_zeros +(2*scaling_factor)
-        	Gph_zeros_neg = Gph_zeros_neg +(2*scaling_factor)
-        	plt.plot(time,Gph_zeros)
-        	plt.plot(time,Gph_zeros_neg)
-        	Gph_zeros_neg=zeros.copy()
-        	Gph_zeros=zeros.copy()
+            Gph_amp= ((Gph_max_amp/no_of_rows)*row)
+            Gph_zeros[fin_Gz_time_pos:fin_Gph_time]= Gph_amp
+            Gph_zeros_neg = - Gph_zeros
+            Gph_zeros = Gph_zeros +(2*scaling_factor)
+            Gph_zeros_neg = Gph_zeros_neg +(2*scaling_factor)
+            plt.plot(time,Gph_zeros)
+            plt.plot(time,Gph_zeros_neg)
+            Gph_zeros_neg=zeros.copy()
+            Gph_zeros=zeros.copy()
 
         x=np.linspace(int(-Rf_time/2),int(Rf_time/2),Rf_x_axis)
         y=np.sinc(x) * rf_amp
@@ -479,13 +457,7 @@ def main():
     import sys
     app = QtWidgets.QApplication(sys.argv)
     qdarktheme.setup_theme("dark")
-    # qdarktheme.setup_theme(
-    #     custom_colors={
-    #         "[light]": {
-    #             "background": "#3f4042",
-    #         }
-    #     }
-    # )
+
     mainwindow = MriMain()
     mainwindow.show()
 
