@@ -356,12 +356,6 @@
           <layout class="QHBoxLayout" name="horizontalLayout_2">
            <item>
             <widget class="QRadioButton" name="pdRadioButton">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
              <property name="text">
               <string>PD</string>
              </property>
@@ -372,12 +366,6 @@
            </item>
            <item>
             <widget class="QRadioButton" name="t1RadioButton">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
              <property name="text">
               <string>T1</string>
              </property>
@@ -385,12 +373,6 @@
            </item>
            <item>
             <widget class="QRadioButton" name="t2RadioButton">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
              <property name="text">
               <string>T2</string>
              </property>

@@ -109,6 +109,8 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.TR_slider.valueChanged.connect(self.assign_TR_TE)
         self.TE_slider.valueChanged.connect(self.assign_TR_TE)
         self.RF_slider.valueChanged.connect(self.assign_TR_TE)
+        self.TI_slider.valueChanged.connect(self.assign_TR_TE)
+        self.duration_slider.valueChanged.connect(self.assign_TR_TE)
         self.RF_slider.valueChanged.connect(self.sequence)
         
         self.actionPause.setEnabled(False)
@@ -137,9 +139,14 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         Parameters.TR = self.TR_slider.value()
         Parameters.TE = self.TE_slider.value()
         Parameters.RF = self.RF_slider.value()
+        Parameters.TI = self.TI_slider.value()
+        Parameters.duration = self.duration_slider.value()
+        
         self.TR_label.setText(str(self.TR_slider.value()))
         self.TE_label.setText(str(self.TE_slider.value()))
         self.RF_label.setText(str(self.RF_slider.value()))
+        self.TI_label.setText(str(self.TI_slider.value()))
+        self.duration_label.setText(str(self.duration_slider.value()))
         
     def select_size(self, index):
         self.selected_size = index
