@@ -129,6 +129,7 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.hideHisto()
         
         self.assign_TR_TE()
+        self.hide_sliders()
         self.select_size(self.selected_size)  
         self.sequence()
 
@@ -147,6 +148,14 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.RF_label.setText(str(self.RF_slider.value()))
         self.TI_label.setText(str(self.TI_slider.value()))
         self.duration_label.setText(str(self.duration_slider.value()))
+        
+    def hide_sliders(self):
+        self.prep_groupBox.hide()
+        
+        self.TI_slider.hide()
+        self.duration_slider.hide()
+        self.angle_slider.hide()
+        self.width_slider.hide()
         
     def select_size(self, index):
         self.selected_size = index
