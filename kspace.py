@@ -433,29 +433,29 @@ class KSpace:
             m = self.decay_power(m, self.TR-duration)
 
 
-        Gx, Gy = np.meshgrid(np.linspace(0,  self.dkx * (self.num_of_cols - 1), self.num_of_cols),
-                            np.linspace(0, self.dky * (self.num_of_rows - 1), self.num_of_rows))
+        Gx, Gy = np.meshgrid(np.linspace(0, 16 * self.dkx * (self.num_of_cols - 1), self.num_of_cols),
+                            np.linspace(0, 16 * self.dky * (self.num_of_rows - 1), self.num_of_rows))
         
         # _, Gy = np.meshgrid(np.linspace(0,  self.dkx * (self.num_of_cols - 1), self.num_of_cols),
         #                     np.linspace(0, self.dky * (self.num_of_rows - 1), self.num_of_rows))
         
         if(angle == 0 or angle == 45):
-            m = self.RF_pulse(m, np.pi/2)
+            m = self.RF_pulse(m, np.pi/4)
             for row in range(self.num_of_rows):
                     for col in range(self.num_of_cols):    
                         m[row, col, :] = np.dot(self.Rz(Gx[row, col]), m[row, col, :])
                         
             m = self.decay_power(m, duration)
-            m = self.RF_pulse(m, 3*np.pi/2)
+            m = self.RF_pulse(m, 7*np.pi/8)
             
         if(angle == 90 or angle == 45):
-            m = self.RF_pulse(m, np.pi/2)
+            m = self.RF_pulse(m, np.pi/4)
             for row in range(self.num_of_rows):
                     for col in range(self.num_of_cols):    
                         m[row, col, :] = np.dot(self.Rz(Gy[row, col]), m[row, col, :])
                         
             m = self.decay_power(m, duration)
-            m = self.RF_pulse(m, 3*np.pi/2)
+            m = self.RF_pulse(m, 7*np.pi/8)
         return m
 
     

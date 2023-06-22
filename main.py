@@ -17,6 +17,7 @@ from kspace import KSpace
 from kspace import Parameters
 from kspace import Prep_Pulses
 from kspace import ACQ_Seq
+from seq_plot import Plotting
 from circle_item import CircleItem
 import sequence
 import phantom
@@ -49,7 +50,10 @@ def display_kspace(shared_variables, reconstruct_image, phantom_img, init_kspace
                                                      Stop.counter, shared_variables['kspace'], 
                                                      shared_variables['selected_prep'], 
                                                      shared_variables['selected_seq'])
-    shared_variables['kspaceViews'][shared_variables['selected_port']].setImage(np.log(np.abs((shared_variables['kspace']))))
+    
+    final_k = np.log(np.abs((shared_variables['kspace'])))
+    shared_variables['kspaceViews'][shared_variables['selected_port']].setImage(final_k)
+    shared_variables['kspaceViews'][shared_variables['selected_port']].setLevels(final_k.min(), final_k.max())
     
     reconstruct_image(shared_variables['phantomViews'][shared_variables['selected_port']], shared_variables['kspace'])
     Stop.counter += 1
@@ -79,7 +83,7 @@ def display_kspace(shared_variables, reconstruct_image, phantom_img, init_kspace
 FORM_CLASS,_ = loadUiType(path.join(path.dirname(__file__), "gui_mri.ui"))
 class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
 
-    def __init__(self):
+    def __init__(self, instance_of_class_a):
         pg.setConfigOptions(imageAxisOrder='row-major') 
         # Interpret image data as row-major instead of col-major
         pg.setConfigOption('background', (15,20, 20))
@@ -91,6 +95,8 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.setStatusBar(self.statusbar)
         self.glw = pg.GraphicsLayoutWidget()
         # self.setCentralWidget(self.glw)
+        
+        self.plotting = instance_of_class_a
         
         self.file_path_name = ""
         
@@ -120,7 +126,15 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.duration_slider.valueChanged.connect(self.assign_TR_TE)
         self.angle_slider.valueChanged.connect(self.assign_TR_TE)
         self.width_slider.valueChanged.connect(self.assign_TR_TE)
-        self.RF_slider.valueChanged.connect(self.sequence)
+        # self.RF_slider.valueChanged.connect(self.sequence)
+        
+        self.RF_slider.valueChanged.connect(self.seq_plot_new)
+        self.TE_slider.valueChanged.connect(self.seq_plot_new)
+        self.TI_slider.valueChanged.connect(lambda: self.plotting.prep_inv(self.TI_slider.value(), self.seq_graphicsView))
+        self.duration_slider.valueChanged.connect(lambda: self.plotting.prep_T2(self.duration_slider.value(), self.seq_graphicsView))
+        self.angle_slider.valueChanged.connect(lambda: self.plotting.prep_inv(self.angle_slider.value(), 20, 10, self.seq_graphicsView))
+
+
         
         self.prep_comboBox.currentIndexChanged.connect(self.prep_index_changed)
         self.seq_comboBox.currentIndexChanged.connect(self.seq_index_changed)
@@ -142,10 +156,10 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         # self.draw_graph(self.plot)
         
         self.imageViews = [self.reconstructedView, self.reconstructedView_2, self.phantomView, self.kspaceView, self.kspaceView_2]
-        self.hideHisto()
         
         self.kspaceViews = [self.kspaceView, self.kspaceView_2]
         self.phantomViews = [self.reconstructedView, self.reconstructedView_2]
+        self.hideHisto()
         
         self.assign_TR_TE()
         self.hide_sliders()
@@ -171,6 +185,8 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.duration_label.setText(str(self.duration_slider.value()))
         self.angle_label.setText(str(self.angle_slider.value() * 45))
         self.width_label.setText(str(self.width_slider.value()))
+        
+        self.seq_plot_new()
         
     def hide_sliders(self):
         self.prep_groupBox.hide()
@@ -213,24 +229,28 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         self.angle_label.show()
         self.label_angle.show()
         
-        self.width_slider.show()
-        self.width_label.show()
-        self.label_width.show()
+        # self.width_slider.show()
+        # self.width_label.show()
+        # self.label_width.show()
         
     def prep_index_changed(self, index):
-        print("yes yes I hear you stop shouting already")
+        print("yes yes I hear you stop shouting ffs")
         if(index==0):
             self.hide_sliders()
             self.selected_prep = Prep_Pulses.NONE
+            self.seq_plot_new()
         elif(index==1):
             self.show_IR()
             self.selected_prep = Prep_Pulses.IR
+            self.plotting.prep_inv(self.TI_slider.value(), self.seq_graphicsView)
         elif(index==2):
             self.show_T2()
             self.selected_prep = Prep_Pulses.T2
+            self.plotting.prep_T2(self.duration_slider.value(), self.seq_graphicsView)
         elif(index==3):
             self.show_Tagging()
             self.selected_prep = Prep_Pulses.TAGGING
+            self.plotting.tagging_draw(self.angle_slider.value() * 45, 20, 10,self.seq_graphicsView)
             
     def seq_index_changed(self, index):
         if(index==0):
@@ -468,17 +488,22 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         reconstructedView.clear()
         image = np.abs((np.fft.ifft2(kspace)))
         reconstructedView.setImage(image)  # ImgaeView
+        reconstructedView.setLevels(image.min(), image.max())
         
         # Connect the mousePressEvent signal to the custom slot
         self.reconstructedView.getView().mousePressEvent = self.handle_mouse_clicked
        
         
     def hideHisto(self):
+        self.seq_graphicsView.hideAxis('bottom')
         for view in self.imageViews:
             view.setLevels(0, 255)
-            view.ui.histogram.setFixedWidth(60)
+            view.ui.histogram.setFixedWidth(70)
             view.ui.roiBtn.hide()
             view.ui.menuBtn.hide()
+            
+        for view in self.kspaceViews:
+            view.setLevels(0, 10)
 
     def mouseClickEvent(self, mouseClickEvent):
         # Check if event is inside image, and convert from screen/pixels to image xy indicies
@@ -518,7 +543,6 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         pass
 
     def sequence(self):
-        self.RF_label.setText(str(self.RF_slider.value()))
         plt.clf()
         TR = self.TR_slider.value()
         TE = self.TE_slider.value()
@@ -598,9 +622,30 @@ class MriMain(QtWidgets.QMainWindow, FORM_CLASS):
         plt.savefig('seq_img.png')
         image = "seq_img.png"
         pixmap = QtGui.QPixmap(image)
-        self.sequenceLabel.setPixmap(pixmap)
+        # self.sequenceLabel.setPixmap(pixmap)
         
         # plt.show()
+        
+    def seq_plot_new(self):
+        self.plotting.Rf_amp_inv = self.RF_slider.value() / 45
+        self.plotting.TE = self.TE_slider.value() 
+      
+        # print("Rf_amp_inv", self.plotting.Rf_amp_inv)
+        self.seq_graphicsView.clear()
+        self.plotting.draw_Gy(self.seq_graphicsView)
+        self.plotting.draw_the_rest(self.seq_graphicsView)
+        
+        if(self.selected_prep==Prep_Pulses.NONE):
+            pass
+        elif(self.selected_prep==Prep_Pulses.IR):
+            self.plotting.prep_inv(self.TI_slider.value(), self.seq_graphicsView)
+        elif(self.selected_prep==Prep_Pulses.T2):
+            self.plotting.prep_T2(self.duration_slider.value(), self.seq_graphicsView)
+        elif(self.selected_prep==Prep_Pulses.TAGGING):
+            self.plotting.tagging_draw(self.angle_slider.value() * 45, 20, 10,self.seq_graphicsView)
+            
+
+            
 
 def main():
     import sys
@@ -613,7 +658,8 @@ def main():
     #         }
     #     }
     # )
-    mainwindow = MriMain()
+    plotting = Plotting()
+    mainwindow = MriMain(plotting)
     mainwindow.show()
 
     # Run the PyQt event loop
